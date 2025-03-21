@@ -19,12 +19,8 @@ done
 if ! command -v cargo &> /dev/null; then
     echo -e "${YELLOW}📦 Cài đặt Rust và Cargo...${NC}"
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    source "$HOME/.cargo/env"  # Cập nhật PATH ngay lập tức
-    if ! command -v cargo &> /dev/null; then
-        echo -e "${RED}❌ Không thể cài Rust. Vui lòng kiểm tra thủ công.${NC}"
-        exit 1
-    fi
 fi
+source "$HOME/.cargo/env"  # Cập nhật PATH ngay lập tức
 
 echo -e "${CYAN}   ____ ______   _______ ______   _    _ ${NC}"
 echo -e "${CYAN}  / __ \  __ \ \ / /_   _|  _ \ | |  | |${NC}"
@@ -51,7 +47,7 @@ export ZK_PROVER_URL=http://127.0.0.1:3001
 export API_REQUEST_TIMEOUT=100
 export POINTS_API=http://127.0.0.1:8080
 echo -e "🔑 Vui lòng nhập khóa riêng của bạn: "
-read -s PRIVATE_KEY  # Ẩn input khi nhập
+read -s PRIVATE_KEY
 echo "export PRIVATE_KEY=$PRIVATE_KEY" >> $HOME/.lightnode_config
 source $HOME/.lightnode_config
 echo -e "✅ Đã thiết lập khóa riêng!"
