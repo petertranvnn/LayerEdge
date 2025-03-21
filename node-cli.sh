@@ -25,7 +25,7 @@ sleep 5
 echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}"
 echo -e "Cập nhật hệ thống và cài đặt các công cụ cơ bản..."
 sudo apt update && sudo apt upgrade -y
-sudo apt install build-essential git screen -y
+sudo apt install build-essential git screen net-tools -y
 echo -e "${GREEN}✅ Đã cập nhật hệ thống và cài đặt công cụ!${NC}"
 
 # 2️⃣ Cài đặt Go 1.21.6
@@ -81,27 +81,49 @@ echo -e "${YELLOW}🧹 Dọn dẹp các phiên screen cũ...${NC}"
 screen -ls | grep Detached | awk '{print $1}' | xargs -I {} screen -X -S {} quit
 echo -e "${GREEN}✅ Đã xóa các phiên screen cũ!${NC}"
 
-# 8️⃣ Chạy Risc0 Merkle Service
+# 8️⃣ Kiểm tra cổng 3001
+echo -e "${YELLOW}🔍 Kiểm tra cổng 3001...${NC}"
+if netstat -tuln | grep -q ":3001"; then
+    echo -e "${RED}❌ Cổng 3001 đã bị chiếm dụng. Vui lòng dừng dịch vụ đang dùng cổng này.${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✅ Cổng 3001 trống, sẵn sàng chạy Risc0 Merkle Service!${NC}"
+fi
+
+# 9️⃣ Chạy Risc0 Merkle Service
 echo -e "${YELLOW}🛠️ Biên dịch và chạy Risc0 Merkle Service...${NC}"
 cd $HOME/light-node/risc0-merkle-service
 cargo build
 if [ $? -eq 0 ]; then
-    screen -S layeredge -dm bash -c "cargo run"
-    echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
+    screen -S layeredge -dm bash -c "cargo run > $HOME/risc0-merkle.log 2>&1"
+    sleep 5
+    if screen -ls | grep -q "layeredge"; then
+        echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
+        echo -e "Log được lưu tại: ${CYAN}$HOME/risc0-merkle.log${NC}"
+    else
+        echo -e "${RED}❌ Risc0 Merkle Service không chạy. Kiểm tra log tại $HOME/risc0-merkle.log${NC}"
+        exit 1
+    fi
 else
     echo -e "${RED}❌ Lỗi khi biên dịch Risc0 Merkle Service. Vui lòng kiểm tra Rust/Cargo.${NC}"
     exit 1
 fi
-sleep 2
 
-# 9️⃣ Biên dịch và chạy Light Node
+# 10️⃣ Biên dịch và chạy Light Node
 echo -e "${YELLOW}🖥️ Biên dịch và chạy Light Node...${NC}"
 cd $HOME/light-node
 go build
 if [ $? -eq 0 ]; then
     if [ -f ./light-node ]; then
-        screen -S light-node -dm ./light-node
-        echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
+        screen -S light-node -dm bash -c "./light-node > $HOME/light-node.log 2>&1"
+        sleep 5
+        if screen -ls | grep -q "light-node"; then
+            echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
+            echo -e "Log được lưu tại: ${CYAN}$HOME/light-node.log${NC}"
+        else
+            echo -e "${RED}❌ Light Node không chạy. Kiểm tra log tại $HOME/light-node.log${NC}"
+            exit 1
+        fi
     else
         echo -e "${RED}❌ Không tìm thấy tệp thực thi 'light-node'. Vui lòng kiểm tra lại.${NC}"
         exit 1
@@ -111,7 +133,7 @@ else
     exit 1
 fi
 
-# 10️⃣ Kiểm tra trạng thái và hoàn tất
+# 11️⃣ Kiểm tra trạng thái và hoàn tất
 echo -e "${GREEN}🎉 Quá trình cài đặt hoàn tất!${NC}"
 echo -e "Các dịch vụ đang chạy trong nền:"
 echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
@@ -119,3 +141,6 @@ echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
 echo -e "Để kiểm tra, dùng lệnh trên. Để dừng, vào screen và nhấn CTRL+C, rồi gõ 'exit'."
 echo -e "${YELLOW}🔍 Kiểm tra danh sách screen:${NC}"
 screen -ls
+echo -e "${YELLOW}💡 Kiểm tra log nếu có lỗi:${NC}"
+echo -e "  - Risc0 Merkle Service: ${CYAN}cat $HOME/risc0-merkle.log${NC}"
+echo -e "  - Light Node: ${CYAN}cat $HOME/light-node.log${NC}"
