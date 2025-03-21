@@ -7,19 +7,8 @@ CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-# Tệp log
-LOG_FILE="$HOME/light_node_setup.log"
-echo "Quá trình cài đặt bắt đầu lúc $(date)" > "$LOG_FILE"
-
-# Kiểm tra kết nối internet
-echo -e "${CYAN}🔍 Kiểm tra kết nối internet...${NC}"
-if ! ping -c 3 google.com &> /dev/null; then
-    echo -e "${RED}❌ Không phát hiện kết nối internet! Vui lòng kiểm tra mạng.${NC}" | tee -a "$LOG_FILE"
-    exit 1
-fi
-echo -e "${GREEN}✅ Kết nối internet hoạt động!${NC}" | tee -a "$LOG_FILE"
-
-# Hiển thị "PETERTRAN"
+# Hiển thị banner "PETERTRAN"
+clear
 echo -e '\e[34m'
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -28,129 +17,87 @@ echo -e "██╔═══╝ ██╔══╝     ██║   ██╔═�
 echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e '\e[0m'
-echo -e "Chào mừng bạn đến với script cài đặt của PETERTRAN" | tee -a "$LOG_FILE"
+echo -e "${CYAN}Chào mừng bạn đến với script cài đặt của PETERTRAN${NC}"
+echo -e "Join our Telegram: ${YELLOW}https://t.me/NTExhaust${NC}"
+sleep 3
 
-# Bắt đầu quá trình cài đặt
-echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}" | tee -a "$LOG_FILE"
-
-# Cập nhật hệ thống và cài đặt các công cụ cần thiết
-echo -e "${CYAN}🔄 Cập nhật hệ thống và cài đặt các công cụ...${NC}" | tee -a "$LOG_FILE"
-sudo apt update && sudo apt upgrade -y >> "$LOG_FILE" 2>&1
-sudo apt install -y git curl build-essential screen ufw python3 python3-pip >> "$LOG_FILE" 2>&1
-pip3 install cosmospy >> "$LOG_FILE" 2>&1
-
-# Cấu hình tường lửa
-echo -e "${CYAN}🔒 Cấu hình tường lửa...${NC}" | tee -a "$LOG_FILE"
-sudo ufw allow 22   # SSH
-sudo ufw allow 9090 # gRPC
-sudo ufw allow 3001 # ZK Prover
-sudo ufw enable -y >> "$LOG_FILE" 2>&1
-echo -e "${GREEN}✅ Tường lửa đã được kích hoạt!${NC}" | tee -a "$LOG_FILE"
-
-# Kiểm tra và cài đặt Go
-if ! command -v go &> /dev/null || [[ $(go version | awk '{print $3}' | sed 's/go//') < "1.18" ]]; then
-    echo -e "${CYAN}📦 Cài đặt Go...${NC}" | tee -a "$LOG_FILE"
-    wget https://go.dev/dl/go1.21.8.linux-amd64.tar.gz -O go.tar.gz >> "$LOG_FILE" 2>&1
-    sudo tar -C /usr/local -xzf go.tar.gz >> "$LOG_FILE" 2>&1
-    echo 'export PATH=$PATH:/usr/local/go/bin' | sudo tee -a /etc/profile > /dev/null
-    source /etc/profile
-    rm go.tar.gz
-    if command -v go &> /dev/null; then
-        echo -e "${GREEN}✅ Đã cài đặt Go: $(go version)${NC}" | tee -a "$LOG_FILE"
-    else
-        echo -e "${RED}❌ Lỗi: Không thể cài đặt Go!${NC}" | tee -a "$LOG_FILE"
-        exit 1
-    fi
-else
-    echo -e "${GREEN}✅ Go đã được cài đặt: $(go version)${NC}" | tee -a "$LOG_FILE"
+# Kiểm tra hệ điều hành
+if [[ ! $(lsb_release -rs) =~ "22.04" ]]; then
+    echo -e "${RED}Error: This script is designed for Ubuntu 22.04 only.${NC}"
+    exit 1
 fi
 
-# Kiểm tra và cài đặt Rust
-if ! command -v rustc &> /dev/null || [[ $(rustc --version | awk '{print $2}') < "1.81.0" ]]; then
-    echo -e "${CYAN}📦 Cài đặt Rust...${NC}" | tee -a "$LOG_FILE"
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y >> "$LOG_FILE" 2>&1
-    source "$HOME/.cargo/env"
-    rustup update >> "$LOG_FILE" 2>&1
-    echo -e "${GREEN}✅ Đã cài đặt Rust: $(rustc --version)${NC}" | tee -a "$LOG_FILE"
-else
-    echo -e "${GREEN}✅ Rust đã được cài đặt: $(rustc --version)${NC}" | tee -a "$LOG_FILE"
+# Cập nhật hệ thống và cài đặt các gói cần thiết
+echo -e "${YELLOW}🚀 Updating system and installing prerequisites...${NC}"
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl build-essential screen
+
+# Cài đặt Go
+echo -e "${YELLOW}📦 Installing Go...${NC}"
+wget -q https://go.dev/dl/go1.21.8.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.21.8.linux-amd64.tar.gz
+echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.bashrc
+source ~/.bashrc
+rm go1.21.8.linux-amd64.tar.gz
+
+# Cài đặt Rust và Risc0
+echo -e "${YELLOW}📥 Installing Rust and Risc0...${NC}"
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+curl -L https://risczero.com/install | bash
+rzup install
+
+# Xóa thư mục cũ nếu tồn tại và clone repository mới
+echo -e "${YELLOW}🔗 Cloning LayerEdge Light Node repository...${NC}"
+rm -rf ~/light-node
+git clone https://github.com/Layer-Edge/light-node.git
+cd ~/light-node || exit
+
+# Nhập private key từ người dùng
+echo -e "${CYAN}🔑 Please enter your private key:${NC}"
+read -s PRIVATE_KEY
+if [ -z "$PRIVATE_KEY" ]; then
+    echo -e "${RED}Error: Private key cannot be empty.${NC}"
+    exit 1
 fi
-
-# Cài đặt Risc0 Toolchain
-echo -e "${CYAN}📥 Cài đặt Risc0 Toolchain...${NC}" | tee -a "$LOG_FILE"
-curl -L https://risczero.com/install | bash >> "$LOG_FILE" 2>&1
-rzup install >> "$LOG_FILE" 2>&1
-source "$HOME/.bashrc"
-echo -e "${GREEN}✅ Đã cài đặt Risc0 Toolchain!${NC}" | tee -a "$LOG_FILE"
-
-# Sao chép kho lưu trữ
-echo -e "${YELLOW}🗑️ Xóa thư mục light-node cũ nếu tồn tại...${NC}" | tee -a "$LOG_FILE"
-rm -rf "$HOME/light-node"
-echo -e "${CYAN}🔗 Sao chép kho lưu trữ...${NC}" | tee -a "$LOG_FILE"
-git clone https://github.com/Layer-Edge/light-node.git >> "$LOG_FILE" 2>&1 && echo -e "${GREEN}✅ Đã sao chép kho lưu trữ!${NC}" | tee -a "$LOG_FILE"
-cd light-node || exit
-
-# Yêu cầu người dùng nhập Private Key
-while true; do
-    echo -e "${YELLOW}🔑 Vui lòng nhập Private Key của bạn: ${NC}"
-    read -r PRIVATE_KEY
-    if [ -z "$PRIVATE_KEY" ]; then
-        echo -e "${RED}❌ Lỗi: Private Key không được để trống! Vui lòng nhập lại.${NC}" | tee -a "$LOG_FILE"
-    else
-        echo -e "${GREEN}✅ Đã nhận Private Key thành công!${NC}" | tee -a "$LOG_FILE"
-        break
-    fi
-done
-export PRIVATE_KEY
 
 # Thiết lập biến môi trường
-echo -e "${CYAN}🔄 Thiết lập biến môi trường...${NC}" | tee -a "$LOG_FILE"
-export GRPC_URL="grpc.testnet.layeredge.io:9090"
-export CONTRACT_ADDR="cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709"
-export ZK_PROVER_URL="http://127.0.0.1:3001"
-export API_REQUEST_TIMEOUT=100
-export POINTS_API="https://light-node.layeredge.io"
+echo -e "${YELLOW}🔄 Setting up environment variables...${NC}"
+cat > .env << EOL
+GRPC_URL=grpc.testnet.layeredge.io:9090
+CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
+ZK_PROVER_URL=http://127.0.0.1:3001
+API_REQUEST_TIMEOUT=100
+POINTS_API=https://light-node.layeredge.io
+PRIVATE_KEY=$PRIVATE_KEY
+EOL
 
-# Lưu biến môi trường vào .env
-echo "GRPC_URL=$GRPC_URL" > .env
-echo "CONTRACT_ADDR=$CONTRACT_ADDR" >> .env
-echo "ZK_PROVER_URL=$ZK_PROVER_URL" >> .env
-echo "API_REQUEST_TIMEOUT=$API_REQUEST_TIMEOUT" >> .env
-echo "POINTS_API=$POINTS_API" >> .env
-echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
-chmod 600 .env  # Bảo mật tệp .env
-
-# Khởi động dịch vụ Merkle
-echo -e "${YELLOW}🛠️ Xây dựng và chạy risc0-merkle-service...${NC}" | tee -a "$LOG_FILE"
+# Build và chạy Merkle Service
+echo -e "${YELLOW}🛠️ Building and starting Merkle Service...${NC}"
 cd risc0-merkle-service || exit
-cargo build >> "$LOG_FILE" 2>&1 && screen -dmS risc0-service cargo run && echo -e "${GREEN}🚀 risc0-merkle-service đang chạy trong phiên screen!${NC}" | tee -a "$LOG_FILE"
-for i in {1..30}; do
-    if screen -list | grep -q "risc0-service"; then
-        echo -e "${GREEN}✅ risc0-merkle-service đã khởi động thành công!${NC}" | tee -a "$LOG_FILE"
-        break
-    fi
-    sleep 1
-done
+cargo build
+screen -dmS merkle-service bash -c "cargo run; exec bash"
+sleep 5
 
-# Chạy Light Node
-cd .. || exit
-echo -e "${YELLOW}🖥️ Khởi động máy chủ light-node...${NC}" | tee -a "$LOG_FILE"
-go build >> "$LOG_FILE" 2>&1 && screen -dmS light-node ./light-node && echo -e "${GREEN}🚀 light-node đang chạy trong phiên screen!${NC}" | tee -a "$LOG_FILE"
+# Build và chạy Light Node
+echo -e "${YELLOW}🖥️ Building and starting Light Node...${NC}"
+cd ~/light-node || exit
+go build
+screen -dmS light-node bash -c "./light-node; exec bash"
 
-# Tự động lấy điểm từ API
-echo -e "${CYAN}📊 Kết nối CLI Node với LayerEdge Dashboard...${NC}" | tee -a "$LOG_FILE"
-WALLET_ADDRESS="$CONTRACT_ADDR"
-POINTS_URL="https://light-node.layeredge.io/api/cli-node/points/$WALLET_ADDRESS"
-curl -s "$POINTS_URL" >> "$LOG_FILE" 2>&1 && echo -e "${GREEN}✅ Đã lấy điểm từ API: $POINTS_URL${NC}" | tee -a "$LOG_FILE"
+# Kiểm tra trạng thái
+echo -e "${GREEN}🎉 Setup complete! Checking status...${NC}"
+sleep 5
+if screen -list | grep -q "merkle-service" && screen -list | grep -q "light-node"; then
+    echo -e "${GREEN}✅ Both Merkle Service and Light Node are running in screen sessions!${NC}"
+else
+    echo -e "${RED}⚠️ Something went wrong. Check screen sessions with 'screen -list'.${NC}"
+fi
 
-# Lấy Public Key
-echo -e "${CYAN}🔑 Tạo Public Key từ Private Key...${NC}" | tee -a "$LOG_FILE"
-echo -e "from cosmospy import Seed\nseed = Seed(private_key='$PRIVATE_KEY')\npublic_key = seed.public_key()\nprint(f'Public Key: {public_key.hex()}')" > get_public_key.py
-PUBLIC_KEY=$(python3 get_public_key.py | grep "Public Key" | awk '{print $3}')
-echo -e "${GREEN}✅ Public Key của bạn: $PUBLIC_KEY${NC}" | tee -a "$LOG_FILE"
-
-# Hoàn tất
-echo -e "${GREEN}🎉 Hoàn tất cài đặt!${NC}" | tee -a "$LOG_FILE"
-echo -e "${CYAN}ℹ️ Kiểm tra dịch vụ: 'screen -r risc0-service' hoặc 'screen -r light-node'${NC}" | tee -a "$LOG_FILE"
-echo -e "${CYAN}ℹ️ Log chi tiết tại: $LOG_FILE${NC}" | tee -a "$LOG_FILE"
-echo -e "${CYAN}ℹ️ Kết nối ví tại: dashboard.layeredge.io với Public Key: $PUBLIC_KEY${NC}" | tee -a "$LOG_FILE"
+# Hướng dẫn sử dụng
+echo -e "${CYAN}ℹ️ Useful commands:${NC}"
+echo -e "  - View running sessions: ${YELLOW}screen -list${NC}"
+echo -e "  - Access Merkle Service: ${YELLOW}screen -r merkle-service${NC}"
+echo -e "  - Access Light Node: ${YELLOW}screen -r light-node${NC}"
+echo -e "  - Detach from screen: ${YELLOW}Ctrl+A then D${NC}"
+echo -e "Join Telegram for support: ${YELLOW}https://t.me/NTExhaust${NC}"
