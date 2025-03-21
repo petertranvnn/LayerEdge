@@ -68,15 +68,30 @@ echo -e "${GREEN}✅ Đã sao chép!${NC}"
 echo -e "${YELLOW}🔄 Cấu hình .env...${NC}"
 echo -e "${CYAN}🔑 Nhập khóa riêng EVM (có thể dùng ví burner):${NC}"
 read -p "Nhập khóa riêng: " PRIVATE_KEY
+echo -e "${CYAN}🔧 Chọn ZK_PROVER_URL: ${NC}"
+echo -e "  1. http://127.0.0.1:3001 (chạy cục bộ - yêu cầu Risc0 Merkle Service)"
+echo -e "  2. layeredge.mintair.xyz (dùng server bên ngoài)"
+read -p "Nhập lựa chọn (1 hoặc 2): " ZK_CHOICE
+if [ "$ZK_CHOICE" == "1" ]; then
+    ZK_PROVER_URL="http://127.0.0.1:3001"
+    RUN_LOCAL_ZK=1
+elif [ "$ZK_CHOICE" == "2" ]; then
+    ZK_PROVER_URL="layeredge.mintair.xyz"
+    RUN_LOCAL_ZK=0
+else
+    echo -e "${RED}❌ Lựa chọn không hợp lệ. Thoát...${NC}"
+    exit 1
+fi
+
 cat > .env << EOL
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
-ZK_PROVER_URL=http://127.0.0.1:3001
+ZK_PROVER_URL=$ZK_PROVER_URL
 API_REQUEST_TIMEOUT=120000  # 120 giây timeout
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOL
-echo -e "${GREEN}✅ Đã tạo .env!${NC}"
+echo -e "${GREEN}✅ Đã tạo .env với ZK_PROVER_URL=$ZK_PROVER_URL!${NC}"
 
 # 7️⃣ Kiểm tra tài nguyên và mạng
 echo -e "${YELLOW}🔍 Kiểm tra tài nguyên...${NC}"
@@ -92,11 +107,14 @@ echo -e "${YELLOW}🔍 Kiểm tra kết nối gRPC...${NC}"
 attempts=0
 max_attempts=3
 while [ $attempts -lt $max_attempts ]; do
-    if nc -zv 34.31.74.109 9090 >/dev/null 2>&1; then
+    nc -zv 34.31.74.109 9090 > /tmp/grpc_check 2>&1
+    if grep -q "succeeded" /tmp/grpc_check; then
         echo -e "${GREEN}✅ Kết nối grpc.testnet.layeredge.io:9090 OK!${NC}"
+        rm /tmp/grpc_check
         break
     else
-        echo -e "${RED}❌ Lần thử $((attempts + 1)): Không kết nối được grpc.testnet.layeredge.io:9090.${NC}"
+        error=$(cat /tmp/grpc_check)
+        echo -e "${RED}❌ Lần thử $((attempts + 1)): Không kết nối được grpc.testnet.layeredge.io:9090. Lỗi: $error${NC}"
         attempts=$((attempts + 1))
         sleep 5
     fi
@@ -106,7 +124,9 @@ if [ $attempts -eq $max_attempts ]; then
     echo -e "${YELLOW}Kiểm tra thủ công:${NC}"
     echo -e "  - nc -zv 34.31.74.109 9090"
     echo -e "  - telnet 34.31.74.109 9090"
-    echo -e "${YELLOW}Nếu vẫn thất bại, server testnet có thể offline. Liên hệ LayerEdge qua Telegram: https://t.me/NTExhaust${NC}"
+    echo -e "  - ping grpc.testnet.layeredge.io"
+    echo -e "${YELLOW}Server testnet có thể offline. Liên hệ LayerEdge qua Telegram: https://t.me/NTExhaust${NC}"
+    rm /tmp/grpc_check
     exit 1
 fi
 
@@ -115,44 +135,47 @@ echo -e "${YELLOW}🧹 Dọn dẹp screen cũ...${NC}"
 screen -ls | grep Detached | awk '{print $1}' | xargs -I {} screen -X -S {} quit
 echo -e "${GREEN}✅ Đã xóa screen cũ!${NC}"
 
-# 9️⃣ Biên dịch Risc0 Merkle Service
-echo -e "${YELLOW}🛠️ Biên dịch Risc0 Merkle Service...${NC}"
-cd $HOME/light-node/risc0-merkle-service
-cargo build --release
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Lỗi biên dịch Risc0 Merkle Service.${NC}"
-    exit 1
-fi
-
-# 10️⃣ Chạy Risc0 Merkle Service
-echo -e "${YELLOW}🚀 Khởi động Risc0 Merkle Service...${NC}"
-attempts=0
-max_attempts=3
-while [ $attempts -lt $max_attempts ]; do
-    if netstat -tuln | grep -q ":3001"; then
-        echo -e "${YELLOW}🔍 Cổng 3001 đang bị chiếm. Đóng tiến trình cũ...${NC}"
-        kill $(lsof -t -i:3001)
+# 9️⃣ Chạy Risc0 Merkle Service (nếu chọn cục bộ)
+if [ "$RUN_LOCAL_ZK" -eq 1 ]; then
+    echo -e "${YELLOW}🛠️ Biên dịch Risc0 Merkle Service...${NC}"
+    cd $HOME/light-node/risc0-merkle-service
+    cargo build --release
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Lỗi biên dịch Risc0 Merkle Service.${NC}"
+        exit 1
     fi
-    screen -S layeredge -dm bash -c "cargo run --release > $HOME/risc0-merkle.log 2>&1"
-    sleep 60
-    if screen -ls | grep -q "layeredge" && curl -s http://127.0.0.1:3001 >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Risc0 Merkle Service đang chạy trên cổng 3001!${NC}"
-        echo -e "Log: ${CYAN}$HOME/risc0-merkle.log${NC}"
-        break
-    else
-        echo -e "${RED}❌ Lần thử $((attempts + 1)) thất bại:${NC}"
+
+    echo -e "${YELLOW}🚀 Khởi động Risc0 Merkle Service...${NC}"
+    attempts=0
+    max_attempts=3
+    while [ $attempts -lt $max_attempts ]; do
+        if netstat -tuln | grep -q ":3001"; then
+            echo -e "${YELLOW}🔍 Cổng 3001 đang bị chiếm. Đóng tiến trình cũ...${NC}"
+            kill $(lsof -t -i:3001)
+        fi
+        screen -S layeredge -dm bash -c "cargo run --release > $HOME/risc0-merkle.log 2>&1"
+        sleep 60
+        if screen -ls | grep -q "layeredge" && curl -s http://127.0.0.1:3001 >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Risc0 Merkle Service đang chạy trên cổng 3001!${NC}"
+            echo -e "Log: ${CYAN}$HOME/risc0-merkle.log${NC}"
+            break
+        else
+            echo -e "${RED}❌ Lần thử $((attempts + 1)) thất bại:${NC}"
+            cat $HOME/risc0-merkle.log
+            attempts=$((attempts + 1))
+            sleep 5
+        fi
+    done
+    if [ $attempts -eq $max_attempts ]; then
+        echo -e "${RED}❌ Không thể chạy Risc0 Merkle Service:${NC}"
         cat $HOME/risc0-merkle.log
-        attempts=$((attempts + 1))
-        sleep 5
+        exit 1
     fi
-done
-if [ $attempts -eq $max_attempts ]; then
-    echo -e "${RED}❌ Không thể chạy Risc0 Merkle Service:${NC}"
-    cat $HOME/risc0-merkle.log
-    exit 1
+else
+    echo -e "${YELLOW}🔧 Dùng ZK_PROVER_URL bên ngoài: $ZK_PROVER_URL. Bỏ qua chạy cục bộ.${NC}"
 fi
 
-# 11️⃣ Biên dịch và chạy Light Node
+# 10️⃣ Biên dịch và chạy Light Node
 echo -e "${YELLOW}🖥️ Biên dịch và chạy Light Node...${NC}"
 cd $HOME/light-node
 go build
@@ -172,13 +195,17 @@ else
     exit 1
 fi
 
-# 12️⃣ Hoàn tất
+# 11️⃣ Hoàn tất
 echo -e "${GREEN}🎉 Cài đặt hoàn tất!${NC}"
 echo -e "Dịch vụ đang chạy:"
-echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
+if [ "$RUN_LOCAL_ZK" -eq 1 ]; then
+    echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
+fi
 echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
 echo -e "${YELLOW}🔍 Danh sách screen:${NC}"
 screen -ls
 echo -e "${YELLOW}💡 Kiểm tra log:${NC}"
-echo -e "  - Risc0: ${CYAN}cat $HOME/risc0-merkle.log${NC}"
+if [ "$RUN_LOCAL_ZK" -eq 1 ]; then
+    echo -e "  - Risc0: ${CYAN}cat $HOME/risc0-merkle.log${NC}"
+fi
 echo -e "  - Light Node: ${CYAN}cat $HOME/light-node.log${NC}"
