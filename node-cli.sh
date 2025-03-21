@@ -23,7 +23,7 @@ sleep 5
 # 1️⃣ Thiết lập ban đầu
 echo -e "${YELLOW}🚀 Bắt đầu cài đặt...${NC}"
 sudo apt update && sudo apt upgrade -y
-sudo apt install build-essential git screen net-tools curl -y
+sudo apt install build-essential git screen net-tools curl telnet -y
 echo -e "${GREEN}✅ Đã cài công cụ cơ bản!${NC}"
 
 # 2️⃣ Cài đặt Go 1.21.6
@@ -72,7 +72,7 @@ cat > .env << EOL
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
 ZK_PROVER_URL=http://127.0.0.1:3001
-API_REQUEST_TIMEOUT=120000  # Tăng timeout lên 120 giây
+API_REQUEST_TIMEOUT=120000  # 120 giây timeout
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOL
@@ -87,11 +87,26 @@ echo -e "RAM: $memory"
 if [ $cpu_cores -lt 2 ] || [ $(free -m | awk '/^Mem:/ {print $2}') -lt 2048 ]; then
     echo -e "${YELLOW}⚠️ VPS có thể không đủ mạnh.${NC}"
 fi
+
 echo -e "${YELLOW}🔍 Kiểm tra kết nối gRPC...${NC}"
-if nc -zv 34.31.74.109 9090 >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Kết nối grpc.testnet.layeredge.io:9090 OK!${NC}"
-else
-    echo -e "${RED}❌ Không kết nối được grpc.testnet.layeredge.io:9090.${NC}"
+attempts=0
+max_attempts=3
+while [ $attempts -lt $max_attempts ]; do
+    if nc -zv 34.31.74.109 9090 >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Kết nối grpc.testnet.layeredge.io:9090 OK!${NC}"
+        break
+    else
+        echo -e "${RED}❌ Lần thử $((attempts + 1)): Không kết nối được grpc.testnet.layeredge.io:9090.${NC}"
+        attempts=$((attempts + 1))
+        sleep 5
+    fi
+done
+if [ $attempts -eq $max_attempts ]; then
+    echo -e "${RED}❌ Không thể kết nối sau $max_attempts lần thử.${NC}"
+    echo -e "${YELLOW}Kiểm tra thủ công:${NC}"
+    echo -e "  - nc -zv 34.31.74.109 9090"
+    echo -e "  - telnet 34.31.74.109 9090"
+    echo -e "${YELLOW}Nếu vẫn thất bại, server testnet có thể offline. Liên hệ LayerEdge qua Telegram: https://t.me/NTExhaust${NC}"
     exit 1
 fi
 
@@ -103,7 +118,7 @@ echo -e "${GREEN}✅ Đã xóa screen cũ!${NC}"
 # 9️⃣ Biên dịch Risc0 Merkle Service
 echo -e "${YELLOW}🛠️ Biên dịch Risc0 Merkle Service...${NC}"
 cd $HOME/light-node/risc0-merkle-service
-cargo build --release  # Dùng profile release để tối ưu hóa
+cargo build --release
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Lỗi biên dịch Risc0 Merkle Service.${NC}"
     exit 1
@@ -119,17 +134,14 @@ while [ $attempts -lt $max_attempts ]; do
         kill $(lsof -t -i:3001)
     fi
     screen -S layeredge -dm bash -c "cargo run --release > $HOME/risc0-merkle.log 2>&1"
-    sleep 60  # Chờ 60 giây để khởi động và xử lý proof
+    sleep 60
     if screen -ls | grep -q "layeredge" && curl -s http://127.0.0.1:3001 >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Risc0 Merkle Service đang chạy và phản hồi trên cổng 3001!${NC}"
+        echo -e "${GREEN}✅ Risc0 Merkle Service đang chạy trên cổng 3001!${NC}"
         echo -e "Log: ${CYAN}$HOME/risc0-merkle.log${NC}"
         break
     else
         echo -e "${RED}❌ Lần thử $((attempts + 1)) thất bại:${NC}"
         cat $HOME/risc0-merkle.log
-        if grep -q "rx len failed" $HOME/risc0-merkle.log; then
-            echo -e "${RED}❌ Lỗi 'rx len failed' phát hiện. Có thể do dữ liệu đầu vào hoặc Risc0 ZKVM.${NC}"
-        fi
         attempts=$((attempts + 1))
         sleep 5
     fi
@@ -137,7 +149,6 @@ done
 if [ $attempts -eq $max_attempts ]; then
     echo -e "${RED}❌ Không thể chạy Risc0 Merkle Service:${NC}"
     cat $HOME/risc0-merkle.log
-    echo -e "${YELLOW}Thử thủ công: cd $HOME/light-node/risc0-merkle-service && cargo run --release${NC}"
     exit 1
 fi
 
@@ -147,7 +158,7 @@ cd $HOME/light-node
 go build
 if [ $? -eq 0 ] && [ -f ./light-node ]; then
     screen -S light-node -dm bash -c "./light-node > $HOME/light-node.log 2>&1"
-    sleep 120  # Chờ 120 giây để xử lý proof
+    sleep 120
     if screen -ls | grep -q "light-node"; then
         echo -e "${GREEN}✅ Light Node đang chạy!${NC}"
         echo -e "Log: ${CYAN}$HOME/light-node.log${NC}"
