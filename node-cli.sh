@@ -34,7 +34,6 @@ echo "export GOROOT=/usr/local/go" >> ~/.bashrc
 echo "export GOPATH=\$HOME/go" >> ~/.bashrc
 echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
 source ~/.bashrc
-rm go1.21.6.tar.gz
 echo -e "${GREEN}✅ Đã cài $(go version)!${NC}"
 
 # 3️⃣ Cài đặt Rust và Cargo
@@ -47,13 +46,18 @@ echo -e "${GREEN}✅ Đã cài Rust: $(rustc --version)!${NC}"
 # 4️⃣ Cài đặt Risc0 Toolchain
 echo -e "${CYAN}📥 Cài đặt Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
-source "/root/.bashrc"
+# Thêm đường dẫn Risc0 vào PATH trực tiếp trong script
+export PATH="$PATH:/root/.risc0/bin"
+# Ghi vào .bashrc để áp dụng lâu dài
+echo "export PATH=\$PATH:/root/.risc0/bin" >> ~/.bashrc
+source ~/.bashrc
+echo -e "${YELLOW}🔍 PATH hiện tại: $PATH${NC}"
 rzup install
-source "/root/.bashrc"
 if command -v rzup >/dev/null 2>&1; then
     echo -e "${GREEN}✅ Risc0 Toolchain: $(rzup --version)!${NC}"
 else
-    echo -e "${RED}❌ Không cài được Risc0 Toolchain. Thoát...${NC}"
+    echo -e "${RED}❌ Không tìm thấy lệnh 'rzup'. Thoát...${NC}"
+    echo -e "${YELLOW}Kiểm tra thủ công: run 'source ~/.bashrc' rồi 'rzup --help'${NC}"
     exit 1
 fi
 
@@ -125,7 +129,7 @@ if [ $attempts -eq $max_attempts ]; then
     echo -e "  - nc -zv 34.31.74.109 9090"
     echo -e "  - telnet 34.31.74.109 9090"
     echo -e "  - ping grpc.testnet.layeredge.io"
-    echo -e "${YELLOW}Server testnet có thể offline. Liên hệ LayerEdge qua Telegram: https://t.me/NTExhaust${NC}"
+    echo -e "${YELLOW}Server testnet có thể offline. Liên hệ LayerEdge qua Telegram: @PeterTran89${NC}"
     rm /tmp/grpc_check
     exit 1
 fi
