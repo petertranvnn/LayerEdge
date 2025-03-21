@@ -8,7 +8,7 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # Không màu
 
-# Hiển thị banner và thông báo chào mừng
+# Hiển thị banner
 echo -e "${BLUE}"
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -21,13 +21,13 @@ echo -e "${GREEN}Chào mừng bạn đến với LayerEdge Light Node!${NC}"
 sleep 5
 
 # 1️⃣ Thiết lập ban đầu
-echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}"
+echo -e "${YELLOW}🚀 Bắt đầu cài đặt...${NC}"
 sudo apt update && sudo apt upgrade -y
 sudo apt install build-essential git screen net-tools -y
-echo -e "${GREEN}✅ Đã cập nhật hệ thống và cài đặt công cụ!${NC}"
+echo -e "${GREEN}✅ Đã cài đặt công cụ cơ bản!${NC}"
 
 # 2️⃣ Cài đặt Go 1.21.6
-echo -e "${CYAN}📥 Cài đặt Go phiên bản 1.21.6...${NC}"
+echo -e "${CYAN}📥 Cài đặt Go 1.21.6...${NC}"
 wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -O go1.21.6.tar.gz
 sudo tar -C /usr/local -xzf go1.21.6.tar.gz
 echo "export GOROOT=/usr/local/go" >> ~/.bashrc
@@ -51,22 +51,22 @@ source "/root/.bashrc"
 rzup install
 source "/root/.bashrc"
 if command -v rzup >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Risc0 Toolchain đã được cài đặt: $(rzup --version)!${NC}"
+    echo -e "${GREEN}✅ Risc0 Toolchain: $(rzup --version)!${NC}"
 else
-    echo -e "${RED}❌ Không tìm thấy Risc0 Toolchain. Thoát...${NC}"
+    echo -e "${RED}❌ Không cài được Risc0 Toolchain. Thoát...${NC}"
     exit 1
 fi
 
 # 5️⃣ Sao chép kho lưu trữ
-echo -e "${YELLOW}🔗 Đang sao chép kho lưu trữ LayerEdge Light Node...${NC}"
+echo -e "${YELLOW}🔗 Sao chép kho lưu trữ...${NC}"
 rm -rf $HOME/light-node
 git clone https://github.com/Layer-Edge/light-node.git $HOME/light-node
 cd $HOME/light-node
 echo -e "${GREEN}✅ Đã sao chép kho lưu trữ!${NC}"
 
-# 6️⃣ Cấu hình tệp .env
+# 6️⃣ Cấu hình .env
 echo -e "${YELLOW}🔄 Cấu hình biến môi trường...${NC}"
-echo -e "${CYAN}🔑 Vui lòng nhập khóa riêng EVM của bạn (có thể dùng ví burner):${NC}"
+echo -e "${CYAN}🔑 Nhập khóa riêng EVM (có thể dùng ví burner):${NC}"
 read -p "Nhập khóa riêng: " PRIVATE_KEY
 cat > .env << EOL
 GRPC_URL=grpc.testnet.layeredge.io:9090
@@ -76,33 +76,27 @@ API_REQUEST_TIMEOUT=100
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOL
-echo -e "${GREEN}✅ Đã tạo tệp .env!${NC}"
+echo -e "${GREEN}✅ Đã tạo .env!${NC}"
 
-# 7️⃣ Kiểm tra tài nguyên và mạng
+# 7️⃣ Kiểm tra tài nguyên
 echo -e "${YELLOW}🔍 Kiểm tra tài nguyên VPS...${NC}"
 cpu_cores=$(nproc)
 memory=$(free -h | awk '/^Mem:/ {print $2}')
-echo -e "Số lõi CPU: $cpu_cores"
-echo -e "Bộ nhớ RAM: $memory"
+echo -e "CPU: $cpu_cores cores"
+echo -e "RAM: $memory"
 if [ $cpu_cores -lt 2 ] || [ $(free -m | awk '/^Mem:/ {print $2}') -lt 2048 ]; then
     echo -e "${YELLOW}⚠️ VPS có thể không đủ mạnh (cần ít nhất 2 CPU, 2GB RAM).${NC}"
 fi
-echo -e "${YELLOW}🔍 Kiểm tra kết nối mạng...${NC}"
-if ping -c 4 grpc.testnet.layeredge.io >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Kết nối đến grpc.testnet.layeredge.io ổn định!${NC}"
-else
-    echo -e "${RED}❌ Không thể kết nối đến grpc.testnet.layeredge.io.${NC}"
-fi
 
 # 8️⃣ Dọn dẹp screen cũ
-echo -e "${YELLOW}🧹 Dọn dẹp các phiên screen cũ...${NC}"
+echo -e "${YELLOW}🧹 Dọn dẹp screen cũ...${NC}"
 screen -ls | grep Detached | awk '{print $1}' | xargs -I {} screen -X -S {} quit
-echo -e "${GREEN}✅ Đã xóa các phiên screen cũ!${NC}"
+echo -e "${GREEN}✅ Đã xóa screen cũ!${NC}"
 
 # 9️⃣ Kiểm tra cổng 3001
 echo -e "${YELLOW}🔍 Kiểm tra cổng 3001...${NC}"
 if netstat -tuln | grep -q ":3001"; then
-    echo -e "${RED}❌ Cổng 3001 đã bị chiếm dụng. Thoát...${NC}"
+    echo -e "${RED}❌ Cổng 3001 đang bị chiếm dụng. Thoát...${NC}"
     exit 1
 else
     echo -e "${GREEN}✅ Cổng 3001 trống!${NC}"
@@ -114,12 +108,12 @@ cd $HOME/light-node/risc0-merkle-service
 cargo build
 if [ $? -eq 0 ]; then
     screen -S layeredge -dm bash -c "cargo run > $HOME/risc0-merkle.log 2>&1"
-    sleep 20 # Chờ lâu hơn cho ZK proof
-    if screen -ls | grep -q "layeredge"; then
-        echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong screen 'layeredge'!${NC}"
+    sleep 20
+    if screen -ls | grep -q "layeredge" && netstat -tuln | grep -q ":3001"; then
+        echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trên cổng 3001!${NC}"
         echo -e "Log: ${CYAN}$HOME/risc0-merkle.log${NC}"
     else
-        echo -e "${RED}❌ Risc0 Merkle Service thất bại:${NC}"
+        echo -e "${RED}❌ Risc0 Merkle Service không chạy hoặc không mở cổng 3001:${NC}"
         cat $HOME/risc0-merkle.log
         echo -e "${YELLOW}Chạy thủ công: cd $HOME/light-node/risc0-merkle-service && cargo run${NC}"
         exit 1
@@ -136,9 +130,9 @@ go build
 if [ $? -eq 0 ]; then
     if [ -f ./light-node ]; then
         screen -S light-node -dm bash -c "./light-node > $HOME/light-node.log 2>&1"
-        sleep 20 # Chờ lâu hơn
+        sleep 20
         if screen -ls | grep -q "light-node"; then
-            echo -e "${GREEN}🚀 Light Node đang chạy trong screen 'light-node'!${NC}"
+            echo -e "${GREEN}🚀 Light Node đang chạy!${NC}"
             echo -e "Log: ${CYAN}$HOME/light-node.log${NC}"
         else
             echo -e "${RED}❌ Light Node thất bại:${NC}"
@@ -156,7 +150,7 @@ else
 fi
 
 # 12️⃣ Hoàn tất
-echo -e "${GREEN}🎉 Quá trình cài đặt hoàn tất!${NC}"
+echo -e "${GREEN}🎉 Cài đặt hoàn tất!${NC}"
 echo -e "Dịch vụ đang chạy:"
 echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
 echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
