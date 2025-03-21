@@ -23,7 +23,7 @@ sleep 5
 # 1️⃣ Thiết lập ban đầu
 echo -e "${YELLOW}🚀 Bắt đầu cài đặt...${NC}"
 sudo apt update && sudo apt upgrade -y
-sudo apt install build-essential git screen net-tools -y
+sudo apt install build-essential git screen net-tools curl -y
 echo -e "${GREEN}✅ Đã cài công cụ cơ bản!${NC}"
 
 # 2️⃣ Cài đặt Go 1.21.6
@@ -72,13 +72,13 @@ cat > .env << EOL
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
 ZK_PROVER_URL=http://127.0.0.1:3001
-API_REQUEST_TIMEOUT=100
+API_REQUEST_TIMEOUT=120000  # Tăng timeout lên 120 giây
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOL
 echo -e "${GREEN}✅ Đã tạo .env!${NC}"
 
-# 7️⃣ Kiểm tra tài nguyên
+# 7️⃣ Kiểm tra tài nguyên và mạng
 echo -e "${YELLOW}🔍 Kiểm tra tài nguyên...${NC}"
 cpu_cores=$(nproc)
 memory=$(free -h | awk '/^Mem:/ {print $2}')
@@ -86,6 +86,13 @@ echo -e "CPU: $cpu_cores cores"
 echo -e "RAM: $memory"
 if [ $cpu_cores -lt 2 ] || [ $(free -m | awk '/^Mem:/ {print $2}') -lt 2048 ]; then
     echo -e "${YELLOW}⚠️ VPS có thể không đủ mạnh.${NC}"
+fi
+echo -e "${YELLOW}🔍 Kiểm tra kết nối gRPC...${NC}"
+if nc -zv 34.31.74.109 9090 >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ Kết nối grpc.testnet.layeredge.io:9090 OK!${NC}"
+else
+    echo -e "${RED}❌ Không kết nối được grpc.testnet.layeredge.io:9090.${NC}"
+    exit 1
 fi
 
 # 8️⃣ Dọn dẹp screen cũ
@@ -96,7 +103,7 @@ echo -e "${GREEN}✅ Đã xóa screen cũ!${NC}"
 # 9️⃣ Biên dịch Risc0 Merkle Service
 echo -e "${YELLOW}🛠️ Biên dịch Risc0 Merkle Service...${NC}"
 cd $HOME/light-node/risc0-merkle-service
-cargo build
+cargo build --release  # Dùng profile release để tối ưu hóa
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Lỗi biên dịch Risc0 Merkle Service.${NC}"
     exit 1
@@ -108,26 +115,29 @@ attempts=0
 max_attempts=3
 while [ $attempts -lt $max_attempts ]; do
     if netstat -tuln | grep -q ":3001"; then
-        echo -e "${YELLOW}🔍 Cổng 3001 đang bị chiếm. Đóng các tiến trình cũ...${NC}"
+        echo -e "${YELLOW}🔍 Cổng 3001 đang bị chiếm. Đóng tiến trình cũ...${NC}"
         kill $(lsof -t -i:3001)
     fi
-    screen -S layeredge -dm bash -c "cargo run > $HOME/risc0-merkle.log 2>&1"
-    sleep 30 # Chờ lâu hơn để dịch vụ khởi động
-    if screen -ls | grep -q "layeredge" && netstat -tuln | grep -q ":3001"; then
-        echo -e "${GREEN}✅ Risc0 Merkle Service đang chạy trên cổng 3001!${NC}"
+    screen -S layeredge -dm bash -c "cargo run --release > $HOME/risc0-merkle.log 2>&1"
+    sleep 60  # Chờ 60 giây để khởi động và xử lý proof
+    if screen -ls | grep -q "layeredge" && curl -s http://127.0.0.1:3001 >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Risc0 Merkle Service đang chạy và phản hồi trên cổng 3001!${NC}"
         echo -e "Log: ${CYAN}$HOME/risc0-merkle.log${NC}"
         break
     else
         echo -e "${RED}❌ Lần thử $((attempts + 1)) thất bại:${NC}"
         cat $HOME/risc0-merkle.log
+        if grep -q "rx len failed" $HOME/risc0-merkle.log; then
+            echo -e "${RED}❌ Lỗi 'rx len failed' phát hiện. Có thể do dữ liệu đầu vào hoặc Risc0 ZKVM.${NC}"
+        fi
         attempts=$((attempts + 1))
         sleep 5
     fi
 done
 if [ $attempts -eq $max_attempts ]; then
-    echo -e "${RED}❌ Không thể chạy Risc0 Merkle Service sau $max_attempts lần thử:${NC}"
+    echo -e "${RED}❌ Không thể chạy Risc0 Merkle Service:${NC}"
     cat $HOME/risc0-merkle.log
-    echo -e "${YELLOW}Chạy thủ công: cd $HOME/light-node/risc0-merkle-service && cargo run${NC}"
+    echo -e "${YELLOW}Thử thủ công: cd $HOME/light-node/risc0-merkle-service && cargo run --release${NC}"
     exit 1
 fi
 
@@ -137,18 +147,17 @@ cd $HOME/light-node
 go build
 if [ $? -eq 0 ] && [ -f ./light-node ]; then
     screen -S light-node -dm bash -c "./light-node > $HOME/light-node.log 2>&1"
-    sleep 30
+    sleep 120  # Chờ 120 giây để xử lý proof
     if screen -ls | grep -q "light-node"; then
         echo -e "${GREEN}✅ Light Node đang chạy!${NC}"
         echo -e "Log: ${CYAN}$HOME/light-node.log${NC}"
     else
         echo -e "${RED}❌ Light Node thất bại:${NC}"
         cat $HOME/light-node.log
-        echo -e "${YELLOW}Chạy thủ công: cd $HOME/light-node && ./light-node${NC}"
         exit 1
     fi
 else
-    echo -e "${RED}❌ Lỗi biên dịch Light Node hoặc không tìm thấy tệp.${NC}"
+    echo -e "${RED}❌ Lỗi biên dịch Light Node.${NC}"
     exit 1
 fi
 
