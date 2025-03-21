@@ -43,15 +43,15 @@ apt install -y curl git build-essential pkg-config libssl-dev
 
 # Cài đặt Rust 1.81.0 và cập nhật PATH
 echo "Đang cài đặt Rust 1.81.0..."
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.81.0
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.81.0 -q
 export PATH="$HOME/.cargo/bin:$PATH"
-rustc --version
+rustc --version || { echo -e "${RED}Lỗi: Rust cài đặt thất bại.${NC}"; exit 1; }
 
 # Cài đặt Risc0 và cập nhật PATH
 echo "Đang cài đặt Risc0..."
-curl -L https://risczero.com/install | bash
+curl -L https://risczero.com/install | bash -s -- -q
 export PATH="$HOME/.risc0/bin:$PATH"
-rzup install
+rzup install || { echo -e "${RED}Lỗi: Risc0 cài đặt thất bại.${NC}"; exit 1; }
 
 # Tải mã nguồn LayerEdge light-node
 echo "Đang tải mã nguồn LayerEdge light-node..."
