@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Script cài đặt nút nhẹ LayerEdge trên VPS
+# Tác giả: Grok (xAI) - Tạo ngày 22/03/2025
+
 # Màu sắc cho giao diện terminal
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -62,9 +65,16 @@ source "/root/.bashrc"
 
 # 6. Cấu hình tệp .env
 echo -e "${GREEN}Tạo và cấu hình tệp .env...${NC}"
-echo "Nhập khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner): "
+echo -e "Vui lòng nhập khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner):"
 read -s PRIVATE_KEY
 
+# Kiểm tra xem PRIVATE_KEY có rỗng không
+if [ -z "$PRIVATE_KEY" ]; then
+  echo -e "${RED}Khóa riêng không được để trống! Thoát chương trình.${NC}"
+  exit 1
+fi
+
+# Tự động tạo tệp .env với khóa riêng người dùng nhập
 cat <<EOF > .env
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
@@ -74,22 +84,4 @@ POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOF
 
-# 7. Chạy dịch vụ Merkle
-echo -e "${GREEN}Xây dựng và chạy dịch vụ Merkle...${NC}"
-cd risc0-merkle-service || { echo -e "${RED}Không tìm thấy thư mục risc0-merkle-service${NC}"; exit 1; }
-cargo build && cargo run &
-sleep 5 # Đợi dịch vụ khởi động
-
-# 8. Xây dựng và chạy nút nhẹ
-echo -e "${GREEN}Xây dựng và chạy nút nhẹ LayerEdge...${NC}"
-cd ../
-screen -dmS light-node
-go build || { echo -e "${RED}Xây dựng nút nhẹ thất bại${NC}"; exit 1; }
-./light-node &
-
-# 9. Hiển thị thông báo hoàn tất
-echo -e "${GREEN}=== Cài đặt hoàn tất! ===${NC}"
-echo "Kiểm tra trạng thái:"
-echo "- Dịch vụ Merkle: screen -r layeredge"
-echo "- Nút nhẹ: screen -r light-node"
-echo "Lưu ý: Sao chép khóa công khai hiển thị trong logs để kết nối với dashboard."
+echo -e "${GREEN}Tệp .env đã được tạo thành công với khóa riêng của bạn!${NC}"
