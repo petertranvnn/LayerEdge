@@ -19,7 +19,7 @@ if ! ping -c 3 google.com &> /dev/null; then
 fi
 echo -e "${GREEN}✅ Kết nối internet hoạt động!${NC}" | tee -a "$LOG_FILE"
 
-# logo
+# Hiển thị "PETERTRAN"
 echo -e '\e[34m'
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -28,7 +28,7 @@ echo -e "██╔═══╝ ██╔══╝     ██║   ██╔═�
 echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e '\e[0m'
-echo -e "Chào mừng bạn đến với chương trình lên đỉnh Node/validator" | tee -a "$LOG_FILE"
+echo -e "Chào mừng bạn đến với script cài đặt của PETERTRAN" | tee -a "$LOG_FILE"
 
 # Bắt đầu quá trình cài đặt
 echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}" | tee -a "$LOG_FILE"
@@ -36,7 +36,8 @@ echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}" | tee -a "$
 # Cập nhật hệ thống và cài đặt các công cụ cần thiết
 echo -e "${CYAN}🔄 Cập nhật hệ thống và cài đặt các công cụ...${NC}" | tee -a "$LOG_FILE"
 sudo apt update && sudo apt upgrade -y >> "$LOG_FILE" 2>&1
-sudo apt install -y git curl build-essential screen ufw >> "$LOG_FILE" 2>&1
+sudo apt install -y git curl build-essential screen ufw python3 python3-pip >> "$LOG_FILE" 2>&1
+pip3 install cosmospy >> "$LOG_FILE" 2>&1
 
 # Cấu hình tường lửa
 echo -e "${CYAN}🔒 Cấu hình tường lửa...${NC}" | tee -a "$LOG_FILE"
@@ -138,12 +139,18 @@ go build >> "$LOG_FILE" 2>&1 && screen -dmS light-node ./light-node && echo -e "
 
 # Tự động lấy điểm từ API
 echo -e "${CYAN}📊 Kết nối CLI Node với LayerEdge Dashboard...${NC}" | tee -a "$LOG_FILE"
-WALLET_ADDRESS="$CONTRACT_ADDR"  # Giả sử ví CLI là CONTRACT_ADDR
+WALLET_ADDRESS="$CONTRACT_ADDR"
 POINTS_URL="https://light-node.layeredge.io/api/cli-node/points/$WALLET_ADDRESS"
 curl -s "$POINTS_URL" >> "$LOG_FILE" 2>&1 && echo -e "${GREEN}✅ Đã lấy điểm từ API: $POINTS_URL${NC}" | tee -a "$LOG_FILE"
+
+# Lấy Public Key
+echo -e "${CYAN}🔑 Tạo Public Key từ Private Key...${NC}" | tee -a "$LOG_FILE"
+echo -e "from cosmospy import Seed\nseed = Seed(private_key='$PRIVATE_KEY')\npublic_key = seed.public_key()\nprint(f'Public Key: {public_key.hex()}')" > get_public_key.py
+PUBLIC_KEY=$(python3 get_public_key.py | grep "Public Key" | awk '{print $3}')
+echo -e "${GREEN}✅ Public Key của bạn: $PUBLIC_KEY${NC}" | tee -a "$LOG_FILE"
 
 # Hoàn tất
 echo -e "${GREEN}🎉 Hoàn tất cài đặt!${NC}" | tee -a "$LOG_FILE"
 echo -e "${CYAN}ℹ️ Kiểm tra dịch vụ: 'screen -r risc0-service' hoặc 'screen -r light-node'${NC}" | tee -a "$LOG_FILE"
 echo -e "${CYAN}ℹ️ Log chi tiết tại: $LOG_FILE${NC}" | tee -a "$LOG_FILE"
-echo -e "${CYAN}ℹ️ Kết nối ví tại: dashboard.layeredge.io${NC}" | tee -a "$LOG_FILE"
+echo -e "${CYAN}ℹ️ Kết nối ví tại: dashboard.layeredge.io với Public Key: $PUBLIC_KEY${NC}" | tee -a "$LOG_FILE"
