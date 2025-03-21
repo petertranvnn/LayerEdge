@@ -44,16 +44,31 @@ echo -e "${GREEN}✅ Đã cài đặt $go_version!${NC}"
 echo -e "${CYAN}📥 Cài đặt Rust và Cargo...${NC}"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
+rustc_version=$(rustc --version)
+echo -e "${GREEN}✅ Đã cài đặt Rust: $rustc_version!${NC}"
 sudo apt install cargo -y
-echo -e "${GREEN}✅ Đã cài đặt Rust và Cargo!${NC}"
 
-# 4️⃣ Cài đặt Risc0 Toolchain
+# 4️⃣ Cài đặt và kiểm tra Risc0 Toolchain
 echo -e "${CYAN}📥 Cài đặt Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
 source "/root/.bashrc"
+echo -e "Cài đặt Risc0 toolchain..."
 rzup install
 source "/root/.bashrc"
-echo -e "${GREEN}✅ Đã cài đặt Risc0 Toolchain!${NC}"
+if command -v rzup >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ Risc0 Toolchain đã được cài đặt!${NC}"
+    rzup_version=$(rzup --version)
+    echo -e "Phiên bản Risc0: $rzup_version"
+else
+    echo -e "${RED}❌ Không tìm thấy Risc0 Toolchain. Cài đặt lại...${NC}"
+    curl -L https://risczero.com/install | bash
+    rzup install
+    source "/root/.bashrc"
+    if ! command -v rzup >/dev/null 2>&1; then
+        echo -e "${RED}❌ Lỗi cài đặt Risc0 Toolchain. Vui lòng kiểm tra kết nối mạng hoặc chạy thủ công.${NC}"
+        exit 1
+    fi
+fi
 
 # 5️⃣ Sao chép kho lưu trữ Light Node
 echo -e "${YELLOW}🔗 Đang sao chép kho lưu trữ LayerEdge Light Node...${NC}"
@@ -102,10 +117,11 @@ if [ $? -eq 0 ]; then
         echo -e "Log được lưu tại: ${CYAN}$HOME/risc0-merkle.log${NC}"
     else
         echo -e "${RED}❌ Risc0 Merkle Service không chạy. Kiểm tra log tại $HOME/risc0-merkle.log${NC}"
+        cat $HOME/risc0-merkle.log
         exit 1
     fi
 else
-    echo -e "${RED}❌ Lỗi khi biên dịch Risc0 Merkle Service. Vui lòng kiểm tra Rust/Cargo.${NC}"
+    echo -e "${RED}❌ Lỗi khi biên dịch Risc0 Merkle Service. Vui lòng kiểm tra log hoặc Rust/Risc0.${NC}"
     exit 1
 fi
 
@@ -122,6 +138,7 @@ if [ $? -eq 0 ]; then
             echo -e "Log được lưu tại: ${CYAN}$HOME/light-node.log${NC}"
         else
             echo -e "${RED}❌ Light Node không chạy. Kiểm tra log tại $HOME/light-node.log${NC}"
+            cat $HOME/light-node.log
             exit 1
         fi
     else
