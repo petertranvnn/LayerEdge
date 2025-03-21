@@ -1,5 +1,3 @@
-# Tạo file auto.sh với nội dung script đã chỉnh sửa
-cat << 'EOF' > auto.sh
 #!/bin/bash
 
 RED='\033[0;31m'
@@ -50,7 +48,7 @@ echo '[dependencies]
 secp256k1 = "0.24"
 hex = "0.4"' >> Cargo.toml
 
-echo -e "📝 Tạo công cụJetzt xuất khóa công khai..."
+echo -e "📝 Tạo công cụ xuất khóa công khai..."
 cat << 'INNEREOF' > get_pubkey.rs
 use secp256k1::{SecretKey, PublicKey};
 use std::env;
@@ -91,7 +89,3 @@ cargo build && screen -dmS light-node cargo run && echo -e "🚀 Máy chủ ligh
 
 echo -e "🎉 Hoàn tất cài đặt! Các máy chủ risc0 và light-node đang chạy độc lập trong các phiên screen!"
 echo -e "Chạy light-node của bạn ngay bây giờ!"
-EOF
-
-# Cấp quyền thực thi
-chmod +x auto.sh
