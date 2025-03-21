@@ -38,8 +38,13 @@ cd light-node
 
 echo -e "📥 Đang tải và cài đặt các phụ thuộc..."
 curl -L https://risczero.com/install | bash && echo -e "✅ Đã cài đặt rzup!" || { echo -e "${RED}❌ Cài đặt rzup thất bại!${NC}"; exit 1; }
+export PATH="$HOME/.risc0/bin:$PATH"  # Cập nhật PATH để rzup sẵn sàng
 source "/root/.bashrc"  # Cập nhật môi trường
 echo -e "${YELLOW}📦 Cài đặt toolchain risc0...${NC}"
+if ! command -v rzup &> /dev/null; then
+    echo -e "${RED}❌ rzup không khả dụng sau khi cài. Kiểm tra PATH hoặc cài thủ công.${NC}"
+    exit 1
+fi
 rzup install && echo -e "✅ Đã cài đặt toolchain risc0!" || { echo -e "${RED}❌ Cài đặt toolchain risc0 thất bại!${NC}"; exit 1; }
 
 echo -e "🔄 Đang áp dụng các biến môi trường..."
