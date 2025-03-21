@@ -18,12 +18,10 @@ echo -e "██║     ███████╗   ██║   ██████
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e "${NC}"
 echo -e "${GREEN}Chào mừng bạn đến với LayerEdge Light Node!${NC}"
-echo -e "Hướng dẫn này sẽ giúp bạn cài đặt và chạy node trên VPS một cách dễ dàng."
 sleep 5
 
 # 1️⃣ Thiết lập ban đầu
 echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}"
-echo -e "Cập nhật hệ thống và cài đặt các công cụ cơ bản..."
 sudo apt update && sudo apt upgrade -y
 sudo apt install build-essential git screen net-tools -y
 echo -e "${GREEN}✅ Đã cập nhật hệ thống và cài đặt công cụ!${NC}"
@@ -37,40 +35,29 @@ echo "export GOPATH=\$HOME/go" >> ~/.bashrc
 echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
 source ~/.bashrc
 rm go1.21.6.tar.gz
-go_version=$(go version)
-echo -e "${GREEN}✅ Đã cài đặt $go_version!${NC}"
+echo -e "${GREEN}✅ Đã cài đặt $(go version)!${NC}"
 
 # 3️⃣ Cài đặt Rust và Cargo
 echo -e "${CYAN}📥 Cài đặt Rust và Cargo...${NC}"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
-rustc_version=$(rustc --version)
-echo -e "${GREEN}✅ Đã cài đặt Rust: $rustc_version!${NC}"
 sudo apt install cargo -y
+echo -e "${GREEN}✅ Đã cài đặt Rust: $(rustc --version)!${NC}"
 
-# 4️⃣ Cài đặt và kiểm tra Risc0 Toolchain
+# 4️⃣ Cài đặt Risc0 Toolchain
 echo -e "${CYAN}📥 Cài đặt Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
 source "/root/.bashrc"
-echo -e "Cài đặt Risc0 toolchain..."
 rzup install
 source "/root/.bashrc"
 if command -v rzup >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Risc0 Toolchain đã được cài đặt!${NC}"
-    rzup_version=$(rzup --version)
-    echo -e "Phiên bản Risc0: $rzup_version"
+    echo -e "${GREEN}✅ Risc0 Toolchain đã được cài đặt: $(rzup --version)!${NC}"
 else
-    echo -e "${RED}❌ Không tìm thấy Risc0 Toolchain. Cài đặt lại...${NC}"
-    curl -L https://risczero.com/install | bash
-    rzup install
-    source "/root/.bashrc"
-    if ! command -v rzup >/dev/null 2>&1; then
-        echo -e "${RED}❌ Lỗi cài đặt Risc0 Toolchain. Vui lòng kiểm tra kết nối mạng hoặc chạy thủ công.${NC}"
-        exit 1
-    fi
+    echo -e "${RED}❌ Không tìm thấy Risc0 Toolchain. Thoát...${NC}"
+    exit 1
 fi
 
-# 5️⃣ Sao chép kho lưu trữ Light Node
+# 5️⃣ Sao chép kho lưu trữ
 echo -e "${YELLOW}🔗 Đang sao chép kho lưu trữ LayerEdge Light Node...${NC}"
 rm -rf $HOME/light-node
 git clone https://github.com/Layer-Edge/light-node.git $HOME/light-node
@@ -89,75 +76,92 @@ API_REQUEST_TIMEOUT=100
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOL
-echo -e "${GREEN}✅ Đã tạo tệp .env với khóa riêng của bạn!${NC}"
+echo -e "${GREEN}✅ Đã tạo tệp .env!${NC}"
 
-# 7️⃣ Dọn dẹp các phiên screen cũ
+# 7️⃣ Kiểm tra tài nguyên và mạng
+echo -e "${YELLOW}🔍 Kiểm tra tài nguyên VPS...${NC}"
+cpu_cores=$(nproc)
+memory=$(free -h | awk '/^Mem:/ {print $2}')
+echo -e "Số lõi CPU: $cpu_cores"
+echo -e "Bộ nhớ RAM: $memory"
+if [ $cpu_cores -lt 2 ] || [ $(free -m | awk '/^Mem:/ {print $2}') -lt 2048 ]; then
+    echo -e "${YELLOW}⚠️ VPS có thể không đủ mạnh (cần ít nhất 2 CPU, 2GB RAM).${NC}"
+fi
+echo -e "${YELLOW}🔍 Kiểm tra kết nối mạng...${NC}"
+if ping -c 4 grpc.testnet.layeredge.io >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ Kết nối đến grpc.testnet.layeredge.io ổn định!${NC}"
+else
+    echo -e "${RED}❌ Không thể kết nối đến grpc.testnet.layeredge.io.${NC}"
+fi
+
+# 8️⃣ Dọn dẹp screen cũ
 echo -e "${YELLOW}🧹 Dọn dẹp các phiên screen cũ...${NC}"
 screen -ls | grep Detached | awk '{print $1}' | xargs -I {} screen -X -S {} quit
 echo -e "${GREEN}✅ Đã xóa các phiên screen cũ!${NC}"
 
-# 8️⃣ Kiểm tra cổng 3001
+# 9️⃣ Kiểm tra cổng 3001
 echo -e "${YELLOW}🔍 Kiểm tra cổng 3001...${NC}"
 if netstat -tuln | grep -q ":3001"; then
-    echo -e "${RED}❌ Cổng 3001 đã bị chiếm dụng. Vui lòng dừng dịch vụ đang dùng cổng này.${NC}"
+    echo -e "${RED}❌ Cổng 3001 đã bị chiếm dụng. Thoát...${NC}"
     exit 1
 else
-    echo -e "${GREEN}✅ Cổng 3001 trống, sẵn sàng chạy Risc0 Merkle Service!${NC}"
+    echo -e "${GREEN}✅ Cổng 3001 trống!${NC}"
 fi
 
-# 9️⃣ Chạy Risc0 Merkle Service
+# 10️⃣ Chạy Risc0 Merkle Service
 echo -e "${YELLOW}🛠️ Biên dịch và chạy Risc0 Merkle Service...${NC}"
 cd $HOME/light-node/risc0-merkle-service
 cargo build
 if [ $? -eq 0 ]; then
     screen -S layeredge -dm bash -c "cargo run > $HOME/risc0-merkle.log 2>&1"
-    sleep 5
+    sleep 20 # Chờ lâu hơn cho ZK proof
     if screen -ls | grep -q "layeredge"; then
-        echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
-        echo -e "Log được lưu tại: ${CYAN}$HOME/risc0-merkle.log${NC}"
+        echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong screen 'layeredge'!${NC}"
+        echo -e "Log: ${CYAN}$HOME/risc0-merkle.log${NC}"
     else
-        echo -e "${RED}❌ Risc0 Merkle Service không chạy. Kiểm tra log tại $HOME/risc0-merkle.log${NC}"
+        echo -e "${RED}❌ Risc0 Merkle Service thất bại:${NC}"
         cat $HOME/risc0-merkle.log
+        echo -e "${YELLOW}Chạy thủ công: cd $HOME/light-node/risc0-merkle-service && cargo run${NC}"
         exit 1
     fi
 else
-    echo -e "${RED}❌ Lỗi khi biên dịch Risc0 Merkle Service. Vui lòng kiểm tra log hoặc Rust/Risc0.${NC}"
+    echo -e "${RED}❌ Lỗi biên dịch Risc0 Merkle Service.${NC}"
     exit 1
 fi
 
-# 10️⃣ Biên dịch và chạy Light Node
+# 11️⃣ Chạy Light Node
 echo -e "${YELLOW}🖥️ Biên dịch và chạy Light Node...${NC}"
 cd $HOME/light-node
 go build
 if [ $? -eq 0 ]; then
     if [ -f ./light-node ]; then
         screen -S light-node -dm bash -c "./light-node > $HOME/light-node.log 2>&1"
-        sleep 5
+        sleep 20 # Chờ lâu hơn
         if screen -ls | grep -q "light-node"; then
-            echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
-            echo -e "Log được lưu tại: ${CYAN}$HOME/light-node.log${NC}"
+            echo -e "${GREEN}🚀 Light Node đang chạy trong screen 'light-node'!${NC}"
+            echo -e "Log: ${CYAN}$HOME/light-node.log${NC}"
         else
-            echo -e "${RED}❌ Light Node không chạy. Kiểm tra log tại $HOME/light-node.log${NC}"
+            echo -e "${RED}❌ Light Node thất bại:${NC}"
             cat $HOME/light-node.log
+            echo -e "${YELLOW}Chạy thủ công: cd $HOME/light-node && ./light-node${NC}"
             exit 1
         fi
     else
-        echo -e "${RED}❌ Không tìm thấy tệp thực thi 'light-node'. Vui lòng kiểm tra lại.${NC}"
+        echo -e "${RED}❌ Không tìm thấy tệp 'light-node'.${NC}"
         exit 1
     fi
 else
-    echo -e "${RED}❌ Lỗi khi biên dịch Light Node. Vui lòng kiểm tra Go và .env.${NC}"
+    echo -e "${RED}❌ Lỗi biên dịch Light Node.${NC}"
     exit 1
 fi
 
-# 11️⃣ Kiểm tra trạng thái và hoàn tất
+# 12️⃣ Hoàn tất
 echo -e "${GREEN}🎉 Quá trình cài đặt hoàn tất!${NC}"
-echo -e "Các dịch vụ đang chạy trong nền:"
+echo -e "Dịch vụ đang chạy:"
 echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
 echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
-echo -e "Để kiểm tra, dùng lệnh trên. Để dừng, vào screen và nhấn CTRL+C, rồi gõ 'exit'."
-echo -e "${YELLOW}🔍 Kiểm tra danh sách screen:${NC}"
+echo -e "${YELLOW}🔍 Danh sách screen:${NC}"
 screen -ls
-echo -e "${YELLOW}💡 Kiểm tra log nếu có lỗi:${NC}"
-echo -e "  - Risc0 Merkle Service: ${CYAN}cat $HOME/risc0-merkle.log${NC}"
+echo -e "${YELLOW}💡 Kiểm tra log:${NC}"
+echo -e "  - Risc0: ${CYAN}cat $HOME/risc0-merkle.log${NC}"
 echo -e "  - Light Node: ${CYAN}cat $HOME/light-node.log${NC}"
