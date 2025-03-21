@@ -1,121 +1,105 @@
-#!/bin/bash
+# Màu sắc cho giao diện
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
 
-# ASCII Art "PETER TRAN" với mã ANSI trực tiếp
-cat << "EOF"
-/bin/echo -e "\033[0;31m" # Đỏ
-  PPPPP   EEEEE  TTTTT  EEEEE  RRRR      TTTTT  RRRR   AAA   NNNN  
-/bin/echo -e "\033[0;32m" # Xanh lá
-  P    P  E        T    E      R    R      T    R    R A   A  N   N 
-/bin/echo -e "\033[1;33m" # Vàng đậm
-  PPPPP   EEEE     T    EEEE   RRRR       T    RRRR   AAAAA  N   N 
-/bin/echo -e "\033[0;34m" # Xanh dương
-  P       E        T    E      R  R       T    R  R   A   A  N   N 
-/bin/echo -e "\033[0;31m" # Đỏ
-  P       EEEEE    T    EEEEE  R   R      T    R   R  A   A  NNNN  
-/bin/echo -e "\033[0m" # Reset màu
-  LayerEdge Light Node Setup by Peter Tran
-EOF
+# Hiển thị
+echo -e '\e[34m'
+echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
+echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
+echo -e "██████╔╝█████╗     ██║   █████╗  ██████╔╝   ██║   ██████╔╝███████║██╔██╗ ██║"
+echo -e "██╔═══╝ ██╔══╝     ██║   ██╔══╝  ██╔══██╗   ██║   ██╔══██╗██╔══██║██║╚██╗██║"
+echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
+echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
+echo -e '\e[0m'
+echo -e "Welcome to the setup script by PETERTRAN"
+sleep 5
 
-echo "Chào mừng Peter Tran đến với script cài đặt LayerEdge CLI Light Node!"
-echo "Script này được cá nhân hóa bởi Peter Tran - Bắt đầu cài đặt nào..."
-sleep 2
+# Bắt đầu quá trình cài đặt
+echo -e "${YELLOW}🚀 Starting setup process...${NC}"
 
-# Bước 1: Kiểm tra và giải phóng khóa apt nếu bị giữ
-echo "Kiểm tra khóa apt..."
-if [ -f /var/lib/dpkg/lock-frontend ]; then
-    echo "Phát hiện khóa apt. Đang giải phóng..."
-    sudo fuser /var/lib/dpkg/lock-frontend
-    sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock
-    sudo dpkg --configure -a
-    echo "Đã giải phóng khóa!"
+# Cập nhật hệ thống và cài đặt các công cụ cần thiết
+echo -e "${CYAN}🔄 Updating system and installing prerequisites...${NC}"
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl build-essential screen
+
+# Kiểm tra và cài đặt Go nếu chưa có (yêu cầu phiên bản 1.18 trở lên)
+if ! command -v go &> /dev/null || [[ $(go version | awk '{print $3}' | sed 's/go//') < "1.18" ]]; then
+    echo -e "${CYAN}📦 Installing Go...${NC}"
+    wget https://go.dev/dl/go1.21.8.linux-amd64.tar.gz
+    sudo tar -C /usr/local -xzf go1.21.8.linux-amd64.tar.gz
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    source ~/.bashrc
+    rm go1.21.8.linux-amd64.tar.gz
+    echo -e "${GREEN}✅ Go installed: $(go version)${NC}"
+else
+    echo -e "${GREEN}✅ Go is already installed: $(go version)${NC}"
 fi
 
-# Bước 2: Cập nhật hệ thống và cài đặt gói cần thiết
-echo "Cập nhật hệ thống và cài đặt gói phụ thuộc..."
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl git build-essential pkg-config libssl-dev
+# Kiểm tra và cài đặt Rust nếu chưa có (yêu cầu phiên bản 1.81.0 trở lên)
+if ! command -v rustc &> /dev/null || [[ $(rustc --version | awk '{print $2}') < "1.81.0" ]]; then
+    echo -e "${CYAN}📦 Installing Rust...${NC}"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+    rustup update
+    echo -e "${GREEN}✅ Rust installed: $(rustc --version)${NC}"
+else
+    echo -e "${GREEN}✅ Rust is already installed: $(rustc --version)${NC}"
+fi
 
-# Bước 3: Cài đặt Go (phiên bản 1.21.8)
-echo "Cài đặt Go..."
-wget -q https://go.dev/dl/go1.21.8.linux-amd64.tar.gz || { echo "Lỗi tải Go! Kiểm tra kết nối mạng."; exit 1; }
-sudo tar -C /usr/local -xzf go1.21.8.linux-amd64.tar.gz
-echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.bashrc
-source ~/.bashrc
-
-# Bước 4: Cài đặt Rust (1.81.0) và Risc0 Toolchain
-echo "Cài đặt Rust và Risc0 Toolchain..."
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source $HOME/.cargo/env
-rustup update
-rustup install 1.81.0
-rustup default 1.81.0
+# Cài đặt Risc0 Toolchain
+echo -e "${CYAN}📥 Installing Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
-export PATH="$HOME/.risc0/bin:$PATH" # Cập nhật PATH ngay lập tức
-rzup install || { echo "Lỗi cài đặt Risc0 Toolchain!"; exit 1; }
+rzup install
+source "$HOME/.bashrc"
+echo -e "${GREEN}✅ Risc0 Toolchain installed!${NC}"
 
-# Bước 5: Sao chép mã nguồn LayerEdge Light Node
-echo "Sao chép mã nguồn LayerEdge Light Node..."
-git clone https://github.com/Layer-Edge/light-node.git || { echo "Lỗi tải mã nguồn! Kiểm tra kết nối mạng."; exit 1; }
-cd light-node
+# Xóa thư mục cũ nếu tồn tại và sao chép kho lưu trữ
+echo -e "${YELLOW}🗑️ Removing old light-node directory if exists...${NC}"
+rm -rf "$HOME/light-node"
+echo -e "${CYAN}🔗 Cloning repository...${NC}"
+git clone https://github.com/Layer-Edge/light-node.git && echo -e "${GREEN}✅ Repository cloned!${NC}"
+cd light-node || exit
 
-# Bước 6: Yêu cầu nhập Private Key
-echo "Peter Tran, vui lòng nhập Private Key của bạn (ký tự sẽ không hiển thị):"
-read -s PRIVATE_KEY
+# Thiết lập biến môi trường
+echo -e "${CYAN}🔄 Applying environment variables...${NC}"
+export GRPC_URL="grpc.testnet.layeredge.io:9090"
+export CONTRACT_ADDR="cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709"
+export ZK_PROVER_URL="http://127.0.0.1:3001"
+export API_REQUEST_TIMEOUT=100
+export POINTS_API="https://light-node.layeredge.io"
+
+# Yêu cầu người dùng nhập khóa riêng
+echo -e "${YELLOW}🔑 Please enter your private key: ${NC}"
+read -r PRIVATE_KEY
 if [ -z "$PRIVATE_KEY" ]; then
-    echo "Lỗi: Peter Tran, Private Key không được để trống. Script sẽ thoát."
+    echo -e "${RED}❌ Error: Private key cannot be empty!${NC}"
     exit 1
 fi
+export PRIVATE_KEY
+echo -e "${GREEN}✅ Private key set!${NC}"
 
-# Bước 7: Tạo file .env
-echo "Tạo file cấu hình .env..."
-cat <<EOF > .env
-GRPC_URL=grpc.testnet.layeredge.io:9090
-CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
-ZK_PROVER_URL=https://layeredge.mintair.xyz/
-API_REQUEST_TIMEOUT=100
-POINTS_API=https://light-node.layeredge.io
-PRIVATE_KEY=$PRIVATE_KEY
-EOF
+# Lưu biến môi trường vào file .env để sử dụng lâu dài
+echo "GRPC_URL=$GRPC_URL" > .env
+echo "CONTRACT_ADDR=$CONTRACT_ADDR" >> .env
+echo "ZK_PROVER_URL=$ZK_PROVER_URL" >> .env
+echo "API_REQUEST_TIMEOUT=$API_REQUEST_TIMEOUT" >> .env
+echo "POINTS_API=$POINTS_API" >> .env
+echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
 
-# Bước 8: Khởi động dịch vụ Merkle trong background
-echo "Khởi động dịch vụ Merkle..."
-cd risc0-merkle-service
-cargo build || { echo "Lỗi biên dịch dịch vụ Merkle!"; exit 1; }
-cargo run & # Chạy nền
-MERKLE_PID=$!
-echo "Dịch vụ Merkle đang chạy với PID $MERKLE_PID. Đợi khởi tạo..."
-sleep 10
+# Xây dựng và chạy dịch vụ Merkle
+echo -e "${YELLOW}🛠️ Building and running risc0-merkle-service...${NC}"
+cd risc0-merkle-service || exit
+cargo build && screen -dmS risc0-service cargo run && echo -e "${GREEN}🚀 risc0-merkle-service is running in a screen session!${NC}"
+sleep 5 # Đợi dịch vụ khởi động
 
-# Bước 9: Biên dịch và chạy Light Node
-cd ..
-echo "Biên dịch và chạy LayerEdge Light Node..."
-go build -o light-node || { echo "Lỗi biên dịch Light Node!"; exit 1; }
+# Quay lại thư mục gốc và chạy Light Node
+cd .. || exit
+echo -e "${YELLOW}🖥️ Starting light-node server in a screen session...${NC}"
+go build && screen -dmS light-node ./light-node && echo -e "${GREEN}🚀 light-node is running in a screen session!${NC}"
 
-# Cấu hình systemd
-sudo bash -c "cat <<EOF > /etc/systemd/system/layeredge.service
-[Unit]
-Description=LayerEdge CLI Light Node bởi Peter Tran
-After=network.target
-
-[Service]
-ExecStart=$(pwd)/light-node
-WorkingDirectory=$(pwd)
-Restart=always
-User=$(whoami)
-EnvironmentFile=$(pwd)/.env
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-
-# Khởi động dịch vụ
-echo "Khởi động node LayerEdge..."
-sudo systemctl daemon-reload
-sudo systemctl enable layeredge.service
-sudo systemctl start layeredge.service
-
-# Thông báo hoàn tất
-echo -e "\033[0;32mPeter Tran, LayerEdge CLI Light Node đã được cài đặt và khởi động thành công!\033[0m"
-echo "Kiểm tra trạng thái: sudo systemctl status layeredge.service"
-echo "Xem log: journalctl -u layeredge.service -f"
-echo -e "\033[1;33mCảm ơn bạn đã sử dụng script của Peter Tran!\033[0m"
+# Hoàn tất
+echo -e "${GREEN}🎉 Setup complete! Both servers are running independently in screen sessions!${NC}"
+echo -e "${CYAN}ℹ️ Use 'screen -r risc0-service' or 'screen -r light-node' to check the running services.${NC}"
