@@ -1,100 +1,68 @@
 #!/bin/bash
 
-# Script tự động cài đặt và chạy LayerEdge Light Node
-# Tác giả: Peter Tran
-# Ngày: 21/03/2025
+# Cập nhật hệ thống
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl git build-essential pkg-config libssl-dev
 
-# ASCII Art "Peter Tran"
-echo -e "\e[32m"
-cat << "EOF"
-  ____      _            
- |  _ \    (_)           
- | |_) | __ _ _ __   __ _ 
- |  _ < / _` | '_ \ / _` |
- | |_) | (_| | | | | (_| |
- |____/ \__,_|_| |_|__, |
-                    __/ |
-                   |____/
-EOF
-echo -e "\e[0m"
-echo "Chào mừng bạn đến với script cài đặt LayerEdge Light Node bởi Peter Tran!"
+# Cài Go
+wget https://go.dev/dl/go1.21.8.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.21.8.linux-amd64.tar.gz
+echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.bashrc
+source ~/.bashrc
 
-# Kiểm tra quyền root
-if [ "$EUID" -ne 0 ]; then
-    echo "Vui lòng chạy script này với quyền root (sudo)!"
+# Cài Rust và Risc0
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source $HOME/.cargo/env
+cargo install cargo-risczero
+risczero install
+
+# Tải mã nguồn
+git clone https://github.com/Layer-Edge/light-node.git
+cd light-node
+
+# Yêu cầu nhập Private Key
+echo "Vui lòng nhập Private Key của bạn (ký tự sẽ không hiển thị):"
+read -s PRIVATE_KEY
+if [ -z "$PRIVATE_KEY" ]; then
+    echo "Lỗi: Private Key không được để trống. Script sẽ thoát."
     exit 1
 fi
 
-# Cập nhật hệ thống
-echo "Đang cập nhật hệ thống..."
-apt update && apt upgrade -y
-
-# Cài đặt các gói cần thiết
-echo "Đang cài đặt các công cụ cần thiết..."
-apt install -y curl wget git build-essential
-
-# Cài đặt Node.js (yêu cầu cho một số script LayerEdge)
-echo "Đang cài đặt Node.js..."
-curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-apt install -y nodejs
-
-# Tải và cài đặt LayerEdge CLI
-echo "Đang tải LayerEdge CLI từ nguồn chính thức..."
-wget -O layeredge-cli.sh https://raw.githubusercontent.com/TheyCallMeSecond/Layeredge-CLI-manager/refs/heads/main/layeredge-cli.sh
-chmod +x layeredge-cli.sh
-
-# Cấu hình biến môi trường
-echo "Đang cấu hình biến môi trường..."
-cat << EOF > .env
-GRPC_URL=grpc.testnet.layeredge.io:9090
+# Tạo file .env với Private Key vừa nhập
+cat <<EOF > .env
+GRPC_URL=34.31.74.109:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
-ZK_PROVER_URL=http://127.0.0.1:3001
+ZK_PROVER_URL=https://layeredge.mintair.xyz/
 API_REQUEST_TIMEOUT=100
-POINTS_API=http://127.0.0.1:8080
-PRIVATE_KEY='your-private-key-here'
+POINTS_API=https://light-node.layeredge.io
+PRIVATE_KEY=$PRIVATE_KEY
 EOF
 
-# Tạo thư mục log
-echo "Đang tạo thư mục log..."
-mkdir -p /var/log/layeredge
-touch /var/log/layeredge/node.log
-touch /var/log/layeredge/node-error.log
+# Biên dịch
+go build -o layeredge-cli main.go
 
-# Tạo service cho LayerEdge Node
-echo "Đang tạo systemd service..."
-cat << EOF > /etc/systemd/system/layeredge-node.service
+# Cấu hình systemd
+sudo bash -c "cat <<EOF > /etc/systemd/system/layeredge.service
 [Unit]
-Description=LayerEdge Light Node Service by Peter Tran
+Description=LayerEdge CLI Light Node
 After=network.target
 
 [Service]
-ExecStart=/bin/bash /root/layeredge-cli.sh start
+ExecStart=$(pwd)/layeredge-cli
+WorkingDirectory=$(pwd)
 Restart=always
-User=root
-StandardOutput=append:/var/log/layeredge/node.log
-StandardError=append:/var/log/layeredge/node-error.log
+User=$(whoami)
+EnvironmentFile=$(pwd)/.env
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF"
 
-# Kích hoạt và khởi động service
-echo "Đang kích hoạt và khởi động LayerEdge Node..."
-systemctl daemon-reload
-systemctl enable layeredge-node.service
-systemctl start layeredge-node.service
+# Khởi động dịch vụ
+sudo systemctl daemon-reload
+sudo systemctl enable layeredge.service
+sudo systemctl start layeredge.service
 
-# Kiểm tra trạng thái
-echo "Kiểm tra trạng thái node..."
-systemctl status layeredge-node.service | head -n 10
-
-# Hướng dẫn sử dụng
-echo -e "\e[33m"
-echo "Cài đặt hoàn tất! Dưới đây là các lệnh hữu ích:"
-echo "  - Kiểm tra trạng thái: systemctl status layeredge-node.service"
-echo "  - Dừng node: systemctl stop layeredge-node.service"
-echo "  - Khởi động lại: systemctl restart layeredge-node.service"
-echo "  - Xem log: tail -f /var/log/layeredge/node.log"
-echo -e "\e[0m"
-
-echo "Chúc bạn kiếm được nhiều EDGE Points! - Peter Tran"
+echo "LayerEdge CLI Light Node đã được cài đặt và khởi động."
+echo "Kiểm tra trạng thái bằng: sudo systemctl status layeredge.service"
+echo "Xem log bằng: journalctl -u layeredge.service -f"
