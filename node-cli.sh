@@ -76,23 +76,46 @@ PRIVATE_KEY=$PRIVATE_KEY
 EOL
 echo -e "${GREEN}✅ Đã tạo tệp .env với khóa riêng của bạn!${NC}"
 
-# 7️⃣ Chạy Risc0 Merkle Service
+# 7️⃣ Dọn dẹp các phiên screen cũ
+echo -e "${YELLOW}🧹 Dọn dẹp các phiên screen cũ...${NC}"
+screen -ls | grep Detached | awk '{print $1}' | xargs -I {} screen -X -S {} quit
+echo -e "${GREEN}✅ Đã xóa các phiên screen cũ!${NC}"
+
+# 8️⃣ Chạy Risc0 Merkle Service
 echo -e "${YELLOW}🛠️ Biên dịch và chạy Risc0 Merkle Service...${NC}"
 cd $HOME/light-node/risc0-merkle-service
-screen -S layeredge -dm bash -c "cargo build && cargo run"
-echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
+cargo build
+if [ $? -eq 0 ]; then
+    screen -S layeredge -dm bash -c "cargo run"
+    echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
+else
+    echo -e "${RED}❌ Lỗi khi biên dịch Risc0 Merkle Service. Vui lòng kiểm tra Rust/Cargo.${NC}"
+    exit 1
+fi
 sleep 2
 
-# 8️⃣ Biên dịch và chạy Light Node
+# 9️⃣ Biên dịch và chạy Light Node
 echo -e "${YELLOW}🖥️ Biên dịch và chạy Light Node...${NC}"
 cd $HOME/light-node
 go build
-screen -S light-node -dm ./light-node
-echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
+if [ $? -eq 0 ]; then
+    if [ -f ./light-node ]; then
+        screen -S light-node -dm ./light-node
+        echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
+    else
+        echo -e "${RED}❌ Không tìm thấy tệp thực thi 'light-node'. Vui lòng kiểm tra lại.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${RED}❌ Lỗi khi biên dịch Light Node. Vui lòng kiểm tra Go và .env.${NC}"
+    exit 1
+fi
 
-# 9️⃣ Hoàn tất
+# 10️⃣ Kiểm tra trạng thái và hoàn tất
 echo -e "${GREEN}🎉 Quá trình cài đặt hoàn tất!${NC}"
 echo -e "Các dịch vụ đang chạy trong nền:"
 echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
 echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
 echo -e "Để kiểm tra, dùng lệnh trên. Để dừng, vào screen và nhấn CTRL+C, rồi gõ 'exit'."
+echo -e "${YELLOW}🔍 Kiểm tra danh sách screen:${NC}"
+screen -ls
