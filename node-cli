@@ -47,3 +47,9 @@ cargo build && screen -dmS light-node cargo run && echo -e "🚀 Máy chủ ligh
 
 echo -e "🎉 Hoàn tất cài đặt! Các máy chủ risc0 và light-node đang chạy độc lập trong các phiên screen!"
 echo -e "Chạy light-node của bạn ngay bây giờ!"
+
+#Hướng dẫn
+echo -e "${GREEN}🎉 Hoàn tất cài đặt!${NC}" | tee -a "$LOG_FILE"
+echo -e "${CYAN}ℹ️ Kiểm tra dịch vụ: 'screen -r risc0-service' hoặc 'screen -r light-node'${NC}" | tee -a "$LOG_FILE"
+echo -e "${CYAN}ℹ️ Log chi tiết tại: $LOG_FILE${NC}" | tee -a "$LOG_FILE"
+echo -e "${CYAN}ℹ️ Kết nối ví tại: dashboard.layeredge.io${NC}" | tee -a "$LOG_FILE"
