@@ -71,20 +71,20 @@ fi
 git clone https://github.com/Layer-Edge/light-node
 cd light-node || { echo -e "${RED}Không thể vào thư mục light-node${NC}"; exit 1; }
 
-# 5. Cấu hình tệp .env với thời gian dừng
+# 5. Cấu hình tệp .env với thời gian dừng và yêu cầu nhập private key
 echo -e "${GREEN}Tạo và cấu hình tệp .env...${NC}"
 echo -e "${GREEN}Chuẩn bị khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner).${NC}"
 echo -e "Nhấn Enter khi bạn đã sẵn sàng nhập khóa riêng để tiếp tục..."
 read -p ""
 
-echo -e "Vui lòng nhập khóa riêng EVM của bạn (nhập rồi nhấn Enter, không để trống):"
-read -s PRIVATE_KEY
-
-# Kiểm tra xem PRIVATE_KEY có rỗng không
-if [ -z "$PRIVATE_KEY" ]; then
-  echo -e "${RED}Khóa riêng không được để trống! Vui lòng chạy lại script và nhập khóa hợp lệ.${NC}"
-  exit 1
-fi
+PRIVATE_KEY=""
+while [ -z "$PRIVATE_KEY" ]; do
+  echo -e "Vui lòng nhập khóa riêng EVM của bạn (khóa không được để trống):"
+  read -s PRIVATE_KEY
+  if [ -z "$PRIVATE_KEY" ]; then
+    echo -e "${RED}Khóa riêng không được để trống! Vui lòng nhập lại.${NC}"
+  fi
+done
 
 # Tự động tạo tệp .env
 cat <<EOF > .env
