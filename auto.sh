@@ -12,12 +12,12 @@ LOG_FILE="$HOME/light_node_setup.log"
 echo "Quá trình cài đặt bắt đầu lúc $(date)" > "$LOG_FILE"
 
 # Kiểm tra kết nối internet
-echo -e "${CYAN}🔍 Kiểm tra kết nối internet...${NC}"
+echo -e "${CYAN}🔍 Kiểm tra kết nối internet...${NC}" | tee -a "$LOG_FILE"
 if ! ping -c 3 google.com &> /dev/null; then
     echo -e "${RED}❌ Không phát hiện kết nối internet! Vui lòng kiểm tra mạng.${NC}" | tee -a "$LOG_FILE"
     exit 1
 fi
-echo -e "${GREEN}✅ Kết nối internet hoạt động!${NC}" | tee -a "$LOG_FILE"
+echo -e "${GREEN}✅ Kết nối internet hoạt động!${NC}" bateau tee -a "$LOG_FILE"
 
 # Hiển thị "PETERTRAN"
 echo -e '\e[34m'
@@ -49,17 +49,12 @@ echo -e "${GREEN}✅ Tường lửa đã được kích hoạt!${NC}" | tee -a "
 # Kiểm tra và cài đặt Go
 if ! command -v go &> /dev/null || [[ $(go version | awk '{print $3}' | sed 's/go//') < "1.18" ]]; then
     echo -e "${CYAN}📦 Cài đặt Go...${NC}" | tee -a "$LOG_FILE"
-    wget https://go.dev/dl/go1.21.8.linux-amd64.tar.gz -O go.tar.gz >> "$LOG_FILE" 2>&1
-    sudo tar -C /usr/local -xzf go.tar.gz >> "$LOG_FILE" 2>&1
-    echo 'export PATH=$PATH:/usr/local/go/bin' | sudo tee -a /etc/profile > /dev/null
-    source /etc/profile
-    rm go.tar.gz
-    if command -v go &> /dev/null; then
-        echo -e "${GREEN}✅ Đã cài đặt Go: $(go version)${NC}" | tee -a "$LOG_FILE"
-    else
-        echo -e "${RED}❌ Lỗi: Không thể cài đặt Go!${NC}" | tee -a "$LOG_FILE"
-        exit 1
-    fi
+    wget https://go.dev/dl/go1.21.8.linux-amd64.tar.gz >> "$LOG_FILE" 2>&1
+    sudo tar -C /usr/local -xzf go1.21.8.linux-amd64.tar.gz >> "$LOG_FILE" 2>&1
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    source ~/.bashrc
+    rm go1.21.8.linux-amd64.tar.gz
+    echo -e "${GREEN}✅ Đã cài đặt Go: $(go version)${NC}" | tee -a "$LOG_FILE"
 else
     echo -e "${GREEN}✅ Go đã được cài đặt: $(go version)${NC}" | tee -a "$LOG_FILE"
 fi
@@ -91,12 +86,12 @@ cd light-node || exit
 
 # Yêu cầu người dùng nhập Private Key
 while true; do
-    echo -e "${YELLOW}🔑 Vui lòng nhập khóa riêng (Private Key) của bạn: ${NC}"
+    echo -e "${YELLOW}🔑 Vui lòng nhập Private Key của bạn: ${NC}"
     read -r PRIVATE_KEY
     if [ -z "$PRIVATE_KEY" ]; then
-        echo -e "${RED}❌ Lỗi: Khóa riêng không được để trống! Vui lòng nhập lại.${NC}" | tee -a "$LOG_FILE"
+        echo -e "${RED}❌ Lỗi: Private Key không được để trống! Vui lòng nhập lại.${NC}" | tee -a "$LOG_FILE"
     else
-        echo -e "${GREEN}✅ Đã nhận khóa riêng thành công!${NC}" | tee -a "$LOG_FILE"
+        echo -e "${GREEN}✅ Đã nhận Private Key thành công!${NC}" | tee -a "$LOG_FILE"
         break
     fi
 done
