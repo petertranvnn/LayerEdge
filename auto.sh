@@ -12,14 +12,14 @@ LOG_FILE="$HOME/light_node_setup.log"
 echo "Quá trình cài đặt bắt đầu lúc $(date)" > "$LOG_FILE"
 
 # Kiểm tra kết nối internet
-echo -e "${CYAN}🔍 Kiểm tra kết nối internet...${NC}"
+echo -e "${CYAN}🔍 Kiểm tra kết nối internet...${NC}" | tee -a "$LOG_FILE"
 if ! ping -c 3 google.com &> /dev/null; then
     echo -e "${RED}❌ Không phát hiện kết nối internet! Vui lòng kiểm tra mạng.${NC}" | tee -a "$LOG_FILE"
     exit 1
 fi
-echo -e "${GREEN}✅ Kết nối internet hoạt động!${NC}" | tee -a "$LOG_FILE"
+echo -e "${GREEN}✅ Kết nối internet hoạt động!${NC}" bateau tee -a "$LOG_FILE"
 
-# LOGO
+# Hiển thị "PETERTRAN"
 echo -e '\e[34m'
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -28,11 +28,10 @@ echo -e "██╔═══╝ ██╔══╝     ██║   ██╔═�
 echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e '\e[0m'
-echo -e "Chào mừng bạn đến với script cài đặt tự động của PETERTRAN"
-sleep 5
+echo -e "Chào mừng bạn đến với script cài đặt của PETERTRAN" | tee -a "$LOG_FILE"
 
 # Bắt đầu quá trình cài đặt
-echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt tự động...${NC}" | tee -a "$LOG_FILE"
+echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}" | tee -a "$LOG_FILE"
 
 # Cập nhật hệ thống và cài đặt các công cụ cần thiết
 echo -e "${CYAN}🔄 Cập nhật hệ thống và cài đặt các công cụ...${NC}" | tee -a "$LOG_FILE"
@@ -85,6 +84,19 @@ echo -e "${CYAN}🔗 Sao chép kho lưu trữ...${NC}" | tee -a "$LOG_FILE"
 git clone https://github.com/Layer-Edge/light-node.git >> "$LOG_FILE" 2>&1 && echo -e "${GREEN}✅ Đã sao chép kho lưu trữ!${NC}" | tee -a "$LOG_FILE"
 cd light-node || exit
 
+# Yêu cầu người dùng nhập Private Key
+while true; do
+    echo -e "${YELLOW}🔑 Vui lòng nhập khóa riêng (Private Key) của bạn: ${NC}"
+    read -r PRIVATE_KEY
+    if [ -z "$PRIVATE_KEY" ]; then
+        echo -e "${RED}❌ Lỗi: Khóa riêng không được để trống! Vui lòng nhập lại.${NC}" | tee -a "$LOG_FILE"
+    else
+        echo -e "${GREEN}✅ Đã nhận khóa riêng thành công!${NC}" | tee -a "$LOG_FILE"
+        break
+    fi
+done
+export PRIVATE_KEY
+
 # Thiết lập biến môi trường
 echo -e "${CYAN}🔄 Thiết lập biến môi trường...${NC}" | tee -a "$LOG_FILE"
 export GRPC_URL="grpc.testnet.layeredge.io:9090"
@@ -92,23 +104,6 @@ export CONTRACT_ADDR="cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarq
 export ZK_PROVER_URL="http://127.0.0.1:3001"
 export API_REQUEST_TIMEOUT=100
 export POINTS_API="https://light-node.layeredge.io"
-
-# Lấy khóa riêng từ tệp hoặc biến môi trường
-echo -e "${YELLOW}🔑 Tự động lấy khóa riêng...${NC}" | tee -a "$LOG_FILE"
-if [ -f "$HOME/private_key.txt" ]; then
-    PRIVATE_KEY=$(cat "$HOME/private_key.txt")
-elif [ -n "$PRIVATE_KEY_ENV" ]; then
-    PRIVATE_KEY="$PRIVATE_KEY_ENV"
-else
-    echo -e "${RED}❌ Lỗi: Không tìm thấy khóa riêng! Cung cấp trong \$HOME/private_key.txt hoặc biến PRIVATE_KEY_ENV.${NC}" | tee -a "$LOG_FILE"
-    exit 1
-fi
-if [ -z "$PRIVATE_KEY" ]; then
-    echo -e "${RED}❌ Lỗi: Khóa riêng trống!${NC}" | tee -a "$LOG_FILE"
-    exit 1
-fi
-export PRIVATE_KEY
-echo -e "${GREEN}✅ Đã thiết lập khóa riêng tự động!${NC}" | tee -a "$LOG_FILE"
 
 # Lưu biến môi trường vào .env
 echo "GRPC_URL=$GRPC_URL" > .env
@@ -138,12 +133,12 @@ go build >> "$LOG_FILE" 2>&1 && screen -dmS light-node ./light-node && echo -e "
 
 # Tự động lấy điểm từ API
 echo -e "${CYAN}📊 Kết nối CLI Node với LayerEdge Dashboard...${NC}" | tee -a "$LOG_FILE"
-WALLET_ADDRESS=$(echo "$CONTRACT_ADDR")  # Giả sử ví CLI là CONTRACT_ADDR
+WALLET_ADDRESS="$CONTRACT_ADDR"  # Giả sử ví CLI là CONTRACT_ADDR
 POINTS_URL="https://light-node.layeredge.io/api/cli-node/points/$WALLET_ADDRESS"
 curl -s "$POINTS_URL" >> "$LOG_FILE" 2>&1 && echo -e "${GREEN}✅ Đã lấy điểm từ API: $POINTS_URL${NC}" | tee -a "$LOG_FILE"
 
 # Hoàn tất
-echo -e "${GREEN}🎉 Hoàn tất cài đặt tự động!${NC}" | tee -a "$LOG_FILE"
+echo -e "${GREEN}🎉 Hoàn tất cài đặt!${NC}" | tee -a "$LOG_FILE"
 echo -e "${CYAN}ℹ️ Kiểm tra dịch vụ: 'screen -r risc0-service' hoặc 'screen -r light-node'${NC}" | tee -a "$LOG_FILE"
-echo -e "${CYAN}ℹ️ Log chi tiết tại: $LOG_FILE${NC}"
-echo -e "${CYAN}ℹ️ Kết nối ví tại: dashboard.layeredge.io${NC}"
+echo -e "${CYAN}ℹ️ Log chi tiết tại: $LOG_FILE${NC}" | tee -a "$LOG_FILE"
+echo -e "${CYAN}ℹ️ Kết nối ví tại: dashboard.layeredge.io${NC}" | tee -a "$LOG_FILE"
