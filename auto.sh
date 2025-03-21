@@ -11,23 +11,23 @@ NC='\033[0m'
 clear
 echo -e '\e[34m'
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
-echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
+echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔====╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
 echo -e "██████╔╝█████╗     ██║   █████╗  ██████╔╝   ██║   ██████╔╝███████║██╔██╗ ██║"
 echo -e "██╔═══╝ ██╔══╝     ██║   ██╔══╝  ██╔══██╗   ██║   ██╔══██╗██╔══██║██║╚██╗██║"
 echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e '\e[0m'
-echo -e "${CYAN}Chào mừng bạn đến với script cài đặt của PETERTRAN${NC}"
+echo -e "Chào mừng bạn đến với script cài đặt của PETERTRAN"
 echo -e "Tham gia Telegram của chúng tôi: ${YELLOW}https://t.me/VietNameseAirdrop${NC}"
 sleep 3
 
-# Yêu cầu người dùng nhập private key thủ công với hướng dẫn rõ ràng
-echo -e "${CYAN}🔑 Vui lòng nhập private key của bạn:${NC}"
-echo -e "${YELLOW}Lưu ý: Nhập private key rồi nhấn Enter để tiếp tục. Script sẽ đợi cho đến khi bạn nhập xong.${NC}"
-echo -e "${YELLOW}Nếu bạn không muốn tiếp tục, nhấn Ctrl+C để thoát.${NC}"
+# Yêu cầu người dùng nhập private key thủ công với định dạng chính xác
+echo -e "🔑 Vui lòng nhập private key của bạn:"
+echo -e "Lưu ý: Nhập private key rồi nhấn Enter để tiếp tục. Script sẽ đợi cho đến khi bạn nhập xong."
+echo -e "Nếu bạn không muốn tiếp tục, nhấn Ctrl+C để thoát."
 read -r PRIVATE_KEY
 if [ -z "$PRIVATE_KEY" ]; then
-    echo -e "${RED}Lỗi: Private key không được để trống.${NC}"
+    echo -e "Lỗi: Private key không được để trống."
     exit 1
 else
     echo -e "${GREEN}✅ Private key đã được nhập thành công. Tiếp tục cài đặt...${NC}"
