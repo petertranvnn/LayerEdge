@@ -41,25 +41,26 @@ echo "Đang cập nhật hệ thống và cài đặt các gói phụ thuộc...
 apt update && apt upgrade -y
 apt install -y curl git build-essential pkg-config libssl-dev
 
-# Cài đặt Rust 1.81.0
+# Cài đặt Rust 1.81.0 và cập nhật PATH
 echo "Đang cài đặt Rust 1.81.0..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.81.0
-source "$HOME/.cargo/env"
+export PATH="$HOME/.cargo/bin:$PATH"
 rustc --version
 
-# Cài đặt Risc0
+# Cài đặt Risc0 và cập nhật PATH
 echo "Đang cài đặt Risc0..."
 curl -L https://risczero.com/install | bash
+export PATH="$HOME/.risc0/bin:$PATH"
 rzup install
 
 # Tải mã nguồn LayerEdge light-node
 echo "Đang tải mã nguồn LayerEdge light-node..."
-git clone https://github.com/Layer-Edge/light-node.git /opt/layeredge-light-node
+git clone https://github.com/Layer-Edge/light-node.git /opt/layeredge-light-node || { echo -e "${RED}Lỗi: Không thể clone repository.${NC}"; exit 1; }
 cd /opt/layeredge-light-node
 
 # Biên dịch light node
 echo "Đang biên dịch LayerEdge CLI Light Node..."
-cargo build --release
+cargo build --release || { echo -e "${RED}Lỗi: Biên dịch thất bại.${NC}"; exit 1; }
 
 # Thiết lập biến môi trường
 echo "Đang thiết lập biến môi trường..."
