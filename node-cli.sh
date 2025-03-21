@@ -49,13 +49,18 @@ echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
 go version || { echo -e "${RED}Cài đặt Go thất bại${NC}"; exit 1; }
 
 # 3. Cài đặt Rust và Risc0 Toolchain
-echo -e "${GREEN}Cài đặt Rust...${NC}"
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source $HOME/.cargo/env
+if ! command -v rustc &> /dev/null; then
+  echo -e "${GREEN}Cài đặt Rust...${NC}"
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  source $HOME/.cargo/env
+else
+  echo -e "${GREEN}Rust đã được cài đặt, bỏ qua...${NC}"
+fi
 
 echo -e "${GREEN}Cài đặt Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
-rzup install
+export PATH=$PATH:/root/.risc0/bin
+rzup install || { echo -e "${RED}Cài đặt Risc0 Toolchain thất bại${NC}"; exit 1; }
 
 # 4. Sao chép kho lưu trữ light-node
 echo -e "${GREEN}Sao chép kho lưu trữ light-node từ GitHub...${NC}"
@@ -72,12 +77,12 @@ echo -e "${GREEN}Chuẩn bị khóa riêng EVM của bạn (khuyến nghị sử
 echo -e "Nhấn Enter khi bạn đã sẵn sàng nhập khóa riêng để tiếp tục..."
 read -p ""
 
-echo -e "Vui lòng nhập khóa riêng EVM của bạn:"
+echo -e "Vui lòng nhập khóa riêng EVM của bạn (nhập rồi nhấn Enter, không để trống):"
 read -s PRIVATE_KEY
 
 # Kiểm tra xem PRIVATE_KEY có rỗng không
 if [ -z "$PRIVATE_KEY" ]; then
-  echo -e "${RED}Khóa riêng không được để trống! Thoát chương trình.${NC}"
+  echo -e "${RED}Khóa riêng không được để trống! Vui lòng chạy lại script và nhập khóa hợp lệ.${NC}"
   exit 1
 fi
 
