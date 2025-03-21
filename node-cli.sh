@@ -1,135 +1,98 @@
 #!/bin/bash
 
-# Script cài đặt nút nhẹ LayerEdge trên VPS
-# Dựa trên hướng dẫn từ người dùng - Tạo ngày 22/03/2025
-
-# Màu sắc cho giao diện terminal
-GREEN='\033[0;32m'
+# Định nghĩa màu sắc
 RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # Không màu
 
 # Hiển thị banner và thông báo chào mừng
-echo -e '\e[34m'
+echo -e "${BLUE}"
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
 echo -e "██████╔╝█████╗     ██║   █████╗  ██████╔╝   ██║   ██████╔╝███████║██╔██╗ ██║"
 echo -e "██╔═══╝ ██╔══╝     ██║   ██╔══╝  ██╔══██╗   ██║   ██╔══██╗██╔══██║██║╚██╗██║"
 echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
-echo -e '\e[0m'
-echo -e "Chào mừng bạn đến chương trình đu đỉnh node/validator"
+echo -e "${NC}"
+echo -e "${GREEN}Chào mừng bạn đến với LayerEdge Light Node!${NC}"
+echo -e "Hướng dẫn này sẽ giúp bạn cài đặt và chạy node trên VPS một cách dễ dàng."
 sleep 5
 
-echo -e "${GREEN}=== Bắt đầu cài đặt nút nhẹ LayerEdge ===${NC}"
+# 1️⃣ Thiết lập ban đầu
+echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}"
+echo -e "Cập nhật hệ thống và cài đặt các công cụ cơ bản..."
+sudo apt update && sudo apt upgrade -y
+sudo apt install build-essential git screen -y
+echo -e "${GREEN}✅ Đã cập nhật hệ thống và cài đặt công cụ!${NC}"
 
-# Kiểm tra quyền root
-if [ "$EUID" -ne 0 ]; then
-  echo -e "${RED}Vui lòng chạy script này với quyền root (sudo)!${NC}"
-  exit 1
-fi
-
-# 1. Thiết lập ban đầu
-echo -e "${GREEN}Cập nhật hệ thống và cài đặt các gói cơ bản...${NC}"
-apt update && apt upgrade -y
-apt install -y build-essential git screen
-
-# 2. Tạo phiên screen cho dịch vụ Merkle
-echo -e "${GREEN}Tạo phiên screen cho dịch vụ Merkle...${NC}"
-screen -dmS layeredge
-
-# 3. Sao chép kho lưu trữ light-node
-echo -e "${GREEN}Sao chép kho lưu trữ light-node từ GitHub...${NC}"
-if [ -d "light-node" ]; then
-  echo -e "${RED}Thư mục light-node đã tồn tại, đang xóa...${NC}"
-  rm -rf light-node
-fi
-git clone https://github.com/Layer-Edge/light-node
-cd light-node || { echo -e "${RED}Không thể vào thư mục light-node${NC}"; exit 1; }
-
-# 4. Cài đặt các phụ thuộc
-# Cài đặt Go 1.21.6
-echo -e "${GREEN}Cài đặt Go 1.21.6...${NC}"
-if ! command -v go &> /dev/null; then
-  wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
-  tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
-  rm go1.21.6.linux-amd64.tar.gz
-fi
-export GOROOT=/usr/local/go
-export GOPATH=$HOME/go
-export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+# 2️⃣ Cài đặt Go 1.21.6
+echo -e "${CYAN}📥 Cài đặt Go phiên bản 1.21.6...${NC}"
+wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -O go1.21.6.tar.gz
+sudo tar -C /usr/local -xzf go1.21.6.tar.gz
 echo "export GOROOT=/usr/local/go" >> ~/.bashrc
 echo "export GOPATH=\$HOME/go" >> ~/.bashrc
 echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
-go version || { echo -e "${RED}Cài đặt Go thất bại${NC}"; exit 1; }
+source ~/.bashrc
+rm go1.21.6.tar.gz
+go_version=$(go version)
+echo -e "${GREEN}✅ Đã cài đặt $go_version!${NC}"
 
-# Cài đặt Rust
-if ! command -v rustc &> /dev/null; then
-  echo -e "${GREEN}Cài đặt Rust...${NC}"
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  source $HOME/.cargo/env
-else
-  echo -e "${GREEN}Rust đã được cài đặt, đang cập nhật lên phiên bản mới nhất...${NC}"
-  rustup update
-fi
-rustc --version || { echo -e "${RED}Cài đặt hoặc cập nhật Rust thất bại${NC}"; exit 1; }
+# 3️⃣ Cài đặt Rust và Cargo
+echo -e "${CYAN}📥 Cài đặt Rust và Cargo...${NC}"
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source $HOME/.cargo/env
+sudo apt install cargo -y
+echo -e "${GREEN}✅ Đã cài đặt Rust và Cargo!${NC}"
 
-# Cài đặt Risc0 Toolchain
-echo -e "${GREEN}Cài đặt Risc0 Toolchain...${NC}"
+# 4️⃣ Cài đặt Risc0 Toolchain
+echo -e "${CYAN}📥 Cài đặt Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
-export PATH=$PATH:/root/.risc0/bin
-rzup install || { echo -e "${RED}Cài đặt Risc0 Toolchain thất bại${NC}"; exit 1; }
+source "/root/.bashrc"
+rzup install
+source "/root/.bashrc"
+echo -e "${GREEN}✅ Đã cài đặt Risc0 Toolchain!${NC}"
 
-# Cài đặt Cargo (nếu chưa có)
-if ! command -v cargo &> /dev/null; then
-  echo -e "${GREEN}Cài đặt Cargo...${NC}"
-  apt install -y cargo
-fi
+# 5️⃣ Sao chép kho lưu trữ Light Node
+echo -e "${YELLOW}🔗 Đang sao chép kho lưu trữ LayerEdge Light Node...${NC}"
+rm -rf $HOME/light-node
+git clone https://github.com/Layer-Edge/light-node.git $HOME/light-node
+cd $HOME/light-node
+echo -e "${GREEN}✅ Đã sao chép kho lưu trữ!${NC}"
 
-# 5. Cấu hình tệp .env với thời gian dừng và yêu cầu nhập private key
-echo -e "${GREEN}Tạo và cấu hình tệp .env...${NC}"
-echo -e "${GREEN}Chuẩn bị khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner).${NC}"
-echo -e "Nhấn Enter khi bạn đã sẵn sàng nhập khóa riêng để tiếp tục..."
-read -p ""
-
-PRIVATE_KEY=""
-while [ -z "$PRIVATE_KEY" ]; do
-  echo -e "Vui lòng nhập khóa riêng EVM của bạn (khóa không được để trống):"
-  read -s PRIVATE_KEY
-  if [ -z "$PRIVATE_KEY" ]; then
-    echo -e "${RED}Khóa riêng không được để trống! Vui lòng nhập lại.${NC}"
-  fi
-done
-
-# Tạo tệp .env
-cat <<EOF > .env
+# 6️⃣ Cấu hình tệp .env
+echo -e "${YELLOW}🔄 Cấu hình biến môi trường...${NC}"
+echo -e "${CYAN}🔑 Vui lòng nhập khóa riêng EVM của bạn (có thể dùng ví burner):${NC}"
+read -p "Nhập khóa riêng: " PRIVATE_KEY
+cat > .env << EOL
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
 ZK_PROVER_URL=http://127.0.0.1:3001
 API_REQUEST_TIMEOUT=100
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
-EOF
-echo -e "${GREEN}Tệp .env đã được tạo thành công!${NC}"
+EOL
+echo -e "${GREEN}✅ Đã tạo tệp .env với khóa riêng của bạn!${NC}"
 
-# 6. Chạy dịch vụ Merkle
-echo -e "${GREEN}Xây dựng và chạy dịch vụ Merkle...${NC}"
-cd risc0-merkle-service || { echo -e "${RED}Không tìm thấy thư mục risc0-merkle-service${NC}"; exit 1; }
-cargo build || { echo -e "${RED}Xây dựng dịch vụ Merkle thất bại${NC}"; exit 1; }
-screen -S layeredge -X stuff "cargo run\n"  # Chạy trong screen đã tạo
-echo -e "${GREEN}Dịch vụ Merkle đang chạy trong screen 'layeredge'. Để kiểm tra, dùng: screen -r layeredge${NC}"
-sleep 5  # Đợi để dịch vụ khởi động
+# 7️⃣ Chạy Risc0 Merkle Service
+echo -e "${YELLOW}🛠️ Biên dịch và chạy Risc0 Merkle Service...${NC}"
+cd $HOME/light-node/risc0-merkle-service
+screen -S layeredge -dm bash -c "cargo build && cargo run"
+echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
+sleep 2
 
-# 7. Xây dựng và chạy nút nhẹ
-echo -e "${GREEN}Xây dựng và chạy nút nhẹ LayerEdge...${NC}"
-cd ../
-screen -dmS light-node
-go build || { echo -e "${RED}Xây dựng nút nhẹ thất bại${NC}"; exit 1; }
-screen -S light-node -X stuff "./light-node\n"  # Chạy trong screen mới
+# 8️⃣ Biên dịch và chạy Light Node
+echo -e "${YELLOW}🖥️ Biên dịch và chạy Light Node...${NC}"
+cd $HOME/light-node
+go build
+screen -S light-node -dm ./light-node
+echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
 
-# 8. Hiển thị thông báo hoàn tất
-echo -e "${GREEN}=== Cài đặt hoàn tất! ===${NC}"
-echo "Kiểm tra trạng thái:"
-echo "- Dịch vụ Merkle: screen -r layeredge"
-echo "- Nút nhẹ: screen -r light-node"
-echo "Lưu ý: Sao chép khóa công khai từ logs trong screen 'light-node' để kết nối với dashboard."
-echo "Để thoát screen, nhấn CTRL+A rồi D."
+# 9️⃣ Hoàn tất
+echo -e "${GREEN}🎉 Quá trình cài đặt hoàn tất!${NC}"
+echo -e "Các dịch vụ đang chạy trong nền:"
+echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
+echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
+echo -e "Để kiểm tra, dùng lệnh trên. Để dừng, vào screen và nhấn CTRL+C, rồi gõ 'exit'."
