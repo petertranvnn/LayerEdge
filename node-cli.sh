@@ -1,3 +1,5 @@
+# Tạo file auto.sh với nội dung script đã chỉnh sửa
+cat << 'EOF' > auto.sh
 #!/bin/bash
 
 RED='\033[0;31m'
@@ -6,7 +8,6 @@ CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-# Hiển thị "PETERTRAN"
 echo -e '\e[34m'
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -32,20 +33,25 @@ CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
 ZK_PROVER_URL=http://127.0.0.1:3001
 API_REQUEST_TIMEOUT=100
 POINTS_API=http://127.0.0.1:8080
-echo -e "🔑 Vui lòng nhập khóa riêng của bạn: "
-read PRIVATE_KEY
-echo -e "✅ Đã thiết lập khóa riêng!"
+
+if [ -z "$PRIVATE_KEY" ] && [ $# -eq 0 ]; then
+    echo -e "${RED}❌ Lỗi: Vui lòng cung cấp PRIVATE_KEY qua biến môi trường hoặc tham số dòng lệnh.${NC}"
+    echo -e "Ví dụ: PRIVATE_KEY=your_private_key_here ./auto.sh"
+    echo -e "Hoặc: ./auto.sh your_private_key_here"
+    exit 1
+elif [ $# -eq 1 ]; then
+    PRIVATE_KEY=$1
+fi
+echo -e "✅ Đã thiết lập khóa riêng: $PRIVATE_KEY"
 export PRIVATE_KEY
 
-# Thêm phụ thuộc để tạo khóa công khai
 echo -e "🛠️ Đang thêm phụ thuộc để tạo khóa công khai..."
 echo '[dependencies]
 secp256k1 = "0.24"
 hex = "0.4"' >> Cargo.toml
 
-# Tạo file Rust tạm thời để xuất khóa công khai
-echo -e "📝 Tạo công cụ xuất khóa công khai..."
-cat << 'EOF' > get_pubkey.rs
+echo -e "📝 Tạo công cụJetzt xuất khóa công khai..."
+cat << 'INNEREOF' > get_pubkey.rs
 use secp256k1::{SecretKey, PublicKey};
 use std::env;
 
@@ -62,9 +68,8 @@ fn main() {
     let public_key = PublicKey::from_secret_key(&secp, &secret_key);
     println!("{}", public_key);
 }
-EOF
+INNEREOF
 
-# Biên dịch và chạy để lấy khóa công khai
 echo -e "🔑 Đang tạo khóa công khai từ khóa riêng..."
 cargo build --bin get_pubkey
 PUBLIC_KEY=$(cargo run --bin get_pubkey -- $PRIVATE_KEY 2>/dev/null)
@@ -86,3 +91,7 @@ cargo build && screen -dmS light-node cargo run && echo -e "🚀 Máy chủ ligh
 
 echo -e "🎉 Hoàn tất cài đặt! Các máy chủ risc0 và light-node đang chạy độc lập trong các phiên screen!"
 echo -e "Chạy light-node của bạn ngay bây giờ!"
+EOF
+
+# Cấp quyền thực thi
+chmod +x auto.sh
