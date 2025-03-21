@@ -91,12 +91,12 @@ cd light-node || exit
 
 # Yêu cầu người dùng nhập Private Key
 while true; do
-    echo -e "${YELLOW}🔑 Vui lòng nhập khóa riêng (Private Key) của bạn: ${NC}"
+    echo -e "${YELLOW}🔑 Vui lòng nhập Private Key của bạn: ${NC}"
     read -r PRIVATE_KEY
     if [ -z "$PRIVATE_KEY" ]; then
-        echo -e "${RED}❌ Lỗi: Khóa riêng không được để trống! Vui lòng nhập lại.${NC}" | tee -a "$LOG_FILE"
+        echo -e "${RED}❌ Lỗi: Private Key không được để trống! Vui lòng nhập lại.${NC}" | tee -a "$LOG_FILE"
     else
-        echo -e "${GREEN}✅ Đã nhận khóa riêng thành công!${NC}" | tee -a "$LOG_FILE"
+        echo -e "${GREEN}✅ Đã nhận Private Key thành công!${NC}" | tee -a "$LOG_FILE"
         break
     fi
 done
