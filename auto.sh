@@ -37,8 +37,10 @@ git clone https://github.com/Layer-Edge/light-node.git && echo -e "✅ Đã sao 
 cd light-node
 
 echo -e "📥 Đang tải và cài đặt các phụ thuộc..."
-curl -L https://risczero.com/install | bash && echo -e "✅ Đã cài đặt phụ thuộc Risc Zero!" || { echo -e "${RED}❌ Cài đặt Risc Zero thất bại!${NC}"; exit 1; }
+curl -L https://risczero.com/install | bash && echo -e "✅ Đã cài đặt rzup!" || { echo -e "${RED}❌ Cài đặt rzup thất bại!${NC}"; exit 1; }
 source "/root/.bashrc"  # Cập nhật môi trường
+echo -e "${YELLOW}📦 Cài đặt toolchain risc0...${NC}"
+rzup install && echo -e "✅ Đã cài đặt toolchain risc0!" || { echo -e "${RED}❌ Cài đặt toolchain risc0 thất bại!${NC}"; exit 1; }
 
 echo -e "🔄 Đang áp dụng các biến môi trường..."
 export GRPC_URL=34.31.74.109:9090
