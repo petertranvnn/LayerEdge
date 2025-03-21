@@ -39,6 +39,10 @@ screen -dmS layeredge
 
 # 3. Sao chép kho lưu trữ light-node
 echo -e "${GREEN}Sao chép kho lưu trữ light-node từ GitHub...${NC}"
+if [ -d "light-node" ]; then
+  echo -e "${RED}Thư mục light-node đã tồn tại, đang xóa...${NC}"
+  rm -rf light-node
+fi
 git clone https://github.com/Layer-Edge/light-node
 cd light-node || { echo -e "${RED}Không thể vào thư mục light-node${NC}"; exit 1; }
 
@@ -46,10 +50,13 @@ cd light-node || { echo -e "${RED}Không thể vào thư mục light-node${NC}";
 echo -e "${GREEN}Cài đặt Go 1.21.6...${NC}"
 wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
 tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+# Ghi vào ~/.bashrc để sử dụng lâu dài
 echo "export GOROOT=/usr/local/go" >> ~/.bashrc
 echo "export GOPATH=\$HOME/go" >> ~/.bashrc
 echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
-source ~/.bashrc
 go version || { echo -e "${RED}Cài đặt Go thất bại${NC}"; exit 1; }
 
 # 5. Cài đặt Rust và Risc0 Toolchain
@@ -63,9 +70,13 @@ source "/root/.bashrc"
 rzup install
 source "/root/.bashrc"
 
-# 6. Cấu hình tệp .env
+# 6. Cấu hình tệp .env với thời gian dừng
 echo -e "${GREEN}Tạo và cấu hình tệp .env...${NC}"
-echo -e "Vui lòng nhập khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner):"
+echo -e "${GREEN}Chuẩn bị khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner).${NC}"
+echo -e "Nhấn Enter khi bạn đã sẵn sàng nhập khóa riêng để tiếp tục..."
+read -p ""
+
+echo -e "Vui lòng nhập khóa riêng EVM của bạn:"
 read -s PRIVATE_KEY
 
 # Kiểm tra xem PRIVATE_KEY có rỗng không
@@ -83,5 +94,24 @@ API_REQUEST_TIMEOUT=100
 POINTS_API=light-node.layeredge.io
 PRIVATE_KEY=$PRIVATE_KEY
 EOF
+echo -e "${GREEN}Tệp .env đã được tạo thành công!${NC}"
 
-echo -e "${GREEN}Tệp .env đã được tạo thành công với khóa riêng của bạn!${NC}"
+# 7. Chạy dịch vụ Merkle
+echo -e "${GREEN}Xây dựng và chạy dịch vụ Merkle...${NC}"
+cd risc0-merkle-service || { echo -e "${RED}Không tìm thấy thư mục risc0-merkle-service${NC}"; exit 1; }
+cargo build && cargo run &
+sleep 5 # Đợi dịch vụ khởi động
+
+# 8. Xây dựng và chạy nút nhẹ
+echo -e "${GREEN}Xây dựng và chạy nút nhẹ LayerEdge...${NC}"
+cd ../
+screen -dmS light-node
+go build || { echo -e "${RED}Xây dựng nút nhẹ thất bại${NC}"; exit 1; }
+./light-node &
+
+# 9. Hiển thị thông báo hoàn tất
+echo -e "${GREEN}=== Cài đặt hoàn tất! ===${NC}"
+echo "Kiểm tra trạng thái:"
+echo "- Dịch vụ Merkle: screen -r layeredge"
+echo "- Nút nhẹ: screen -r light-node"
+echo "Lưu ý: Sao chép khóa công khai hiển thị trong logs để kết nối với dashboard."
