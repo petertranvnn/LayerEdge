@@ -37,6 +37,45 @@ read PRIVATE_KEY
 echo -e "✅ Đã thiết lập khóa riêng!"
 export PRIVATE_KEY
 
+# Thêm phụ thuộc để tạo khóa công khai
+echo -e "🛠️ Đang thêm phụ thuộc để tạo khóa công khai..."
+echo '[dependencies]
+secp256k1 = "0.24"
+hex = "0.4"' >> Cargo.toml
+
+# Tạo file Rust tạm thời để xuất khóa công khai
+echo -e "📝 Tạo công cụ xuất khóa công khai..."
+cat << 'EOF' > get_pubkey.rs
+use secp256k1::{SecretKey, PublicKey};
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Vui lòng cung cấp khóa riêng dưới dạng hex!");
+        std::process::exit(1);
+    }
+    let private_key_hex = &args[1];
+    let private_key_bytes = hex::decode(private_key_hex).expect("Chuỗi hex không hợp lệ");
+    let secp = secp256k1::Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&private_key_bytes).expect("Khóa riêng không hợp lệ");
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+    println!("{}", public_key);
+}
+EOF
+
+# Biên dịch và chạy để lấy khóa công khai
+echo -e "🔑 Đang tạo khóa công khai từ khóa riêng..."
+cargo build --bin get_pubkey
+PUBLIC_KEY=$(cargo run --bin get_pubkey -- $PRIVATE_KEY 2>/dev/null)
+if [ -z "$PUBLIC_KEY" ]; then
+    echo -e "${RED}❌ Lỗi: Không thể tạo khóa công khai. Vui lòng kiểm tra khóa riêng của bạn.${NC}"
+    exit 1
+else
+    echo -e "✅ Khóa công khai: $PUBLIC_KEY"
+    export PUBLIC_KEY
+fi
+
 echo -e "🛠️ Xây dựng và chạy risc0-merkle-service..."
 cd risc0-merkle-service
 cargo build && screen -dmS risc0-service cargo run && echo -e "🚀 risc0-merkle-service đang chạy trong một phiên screen!"
