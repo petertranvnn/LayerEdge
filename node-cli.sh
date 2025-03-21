@@ -54,8 +54,10 @@ if ! command -v rustc &> /dev/null; then
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   source $HOME/.cargo/env
 else
-  echo -e "${GREEN}Rust đã được cài đặt, bỏ qua...${NC}"
+  echo -e "${GREEN}Rust đã được cài đặt, đang cập nhật lên phiên bản mới nhất...${NC}"
+  rustup update
 fi
+rustc --version || { echo -e "${RED}Cài đặt hoặc cập nhật Rust thất bại${NC}"; exit 1; }
 
 echo -e "${GREEN}Cài đặt Risc0 Toolchain...${NC}"
 curl -L https://risczero.com/install | bash
