@@ -1,11 +1,11 @@
 #!/bin/bash
 
-RED='\033[0;31m'
+# Màu sắc cho giao diện terminal
 GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
+RED='\033[0;31m'
+NC='\033[0m' # Không màu
 
+# Hiển thị banner và thông báo chào mừng
 echo -e '\e[34m'
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -14,78 +14,82 @@ echo -e "██╔═══╝ ██╔══╝     ██║   ██╔═�
 echo -e "██║     ███████╗   ██║   ███████╗██║  ██║   ██║   ██║  ██║██║  ██║██║ ╚████║"
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e '\e[0m'
-echo -e "Chào mừng bạn đến chương trình đu đỉnh node/validator" 
+echo -e "Chào mừng bạn đến chương trình đu đỉnh node/validator"
 sleep 5
 
-echo -e "🚀 Bắt đầu quá trình cài đặt..."
-rm -rf $HOME/light-node
-echo -e "🔗 Đang sao chép kho lưu trữ..."
-git clone https://github.com/Layer-Edge/light-node.git && echo -e "✅ Đã sao chép kho lưu trữ!"
-cd light-node
-echo -e "📥 Đang tải và cài đặt các phụ thuộc..."
-curl -L https://risczero.com/install | bash && echo -e "✅ Đã cài đặt các phụ thuộc!"
+echo -e "${GREEN}=== Bắt đầu cài đặt nút nhẹ LayerEdge ===${NC}"
+
+# Kiểm tra quyền root
+if [ "$EUID" -ne 0 ]; then
+  echo -e "${RED}Vui lòng chạy script này với quyền root (sudo)!${NC}"
+  exit 1
+fi
+
+# 1. Thiết lập ban đầu
+echo -e "${GREEN}Cập nhật hệ thống và cài đặt các gói cơ bản...${NC}"
+apt update && apt upgrade -y
+apt install -y build-essential git screen nano cargo
+
+# 2. Tạo phiên screen cho dịch vụ Merkle
+echo -e "${GREEN}Tạo phiên screen cho dịch vụ Merkle...${NC}"
+screen -dmS layeredge
+
+# 3. Sao chép kho lưu trữ light-node
+echo -e "${GREEN}Sao chép kho lưu trữ light-node từ GitHub...${NC}"
+git clone https://github.com/Layer-Edge/light-node
+cd light-node || { echo -e "${RED}Không thể vào thư mục light-node${NC}"; exit 1; }
+
+# 4. Cài đặt Go (phiên bản 1.21.6)
+echo -e "${GREEN}Cài đặt Go 1.21.6...${NC}"
+wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+echo "export GOROOT=/usr/local/go" >> ~/.bashrc
+echo "export GOPATH=\$HOME/go" >> ~/.bashrc
+echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
+source ~/.bashrc
+go version || { echo -e "${RED}Cài đặt Go thất bại${NC}"; exit 1; }
+
+# 5. Cài đặt Rust và Risc0 Toolchain
+echo -e "${GREEN}Cài đặt Rust...${NC}"
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source $HOME/.cargo/env
+
+echo -e "${GREEN}Cài đặt Risc0 Toolchain...${NC}"
+curl -L https://risczero.com/install | bash
 source "/root/.bashrc"
-echo -e "🔄 Áp dụng các biến môi trường..."
+rzup install
+source "/root/.bashrc"
+
+# 6. Cấu hình tệp .env
+echo -e "${GREEN}Tạo và cấu hình tệp .env...${NC}"
+echo "Nhập khóa riêng EVM của bạn (khuyến nghị sử dụng ví burner): "
+read -s PRIVATE_KEY
+
+cat <<EOF > .env
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
 ZK_PROVER_URL=http://127.0.0.1:3001
 API_REQUEST_TIMEOUT=100
-POINTS_API=http://127.0.0.1:8080
+POINTS_API=light-node.layeredge.io
+PRIVATE_KEY=$PRIVATE_KEY
+EOF
 
-if [ -z "$PRIVATE_KEY" ] && [ $# -eq 0 ]; then
-    echo -e "${RED}❌ Lỗi: Vui lòng cung cấp PRIVATE_KEY qua biến môi trường hoặc tham số dòng lệnh.${NC}"
-    echo -e "Ví dụ: PRIVATE_KEY=your_private_key_here ./auto.sh"
-    echo -e "Hoặc: ./auto.sh your_private_key_here"
-    exit 1
-elif [ $# -eq 1 ]; then
-    PRIVATE_KEY=$1
-fi
-echo -e "✅ Đã thiết lập khóa riêng: $PRIVATE_KEY"
-export PRIVATE_KEY
+# 7. Chạy dịch vụ Merkle
+echo -e "${GREEN}Xây dựng và chạy dịch vụ Merkle...${NC}"
+cd risc0-merkle-service || { echo -e "${RED}Không tìm thấy thư mục risc0-merkle-service${NC}"; exit 1; }
+cargo build && cargo run &
+sleep 5 # Đợi dịch vụ khởi động
 
-echo -e "🛠️ Đang thêm phụ thuộc để tạo khóa công khai..."
-echo '[dependencies]
-secp256k1 = "0.24"
-hex = "0.4"' >> Cargo.toml
+# 8. Xây dựng và chạy nút nhẹ
+echo -e "${GREEN}Xây dựng và chạy nút nhẹ LayerEdge...${NC}"
+cd ../
+screen -dmS light-node
+go build || { echo -e "${RED}Xây dựng nút nhẹ thất bại${NC}"; exit 1; }
+./light-node &
 
-echo -e "📝 Tạo công cụ xuất khóa công khai..."
-cat << 'INNEREOF' > get_pubkey.rs
-use secp256k1::{SecretKey, PublicKey};
-use std::env;
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Vui lòng cung cấp khóa riêng dưới dạng hex!");
-        std::process::exit(1);
-    }
-    let private_key_hex = &args[1];
-    let private_key_bytes = hex::decode(private_key_hex).expect("Chuỗi hex không hợp lệ");
-    let secp = secp256k1::Secp256k1::new();
-    let secret_key = SecretKey::from_slice(&private_key_bytes).expect("Khóa riêng không hợp lệ");
-    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
-    println!("{}", public_key);
-}
-INNEREOF
-
-echo -e "🔑 Đang tạo khóa công khai từ khóa riêng..."
-cargo build --bin get_pubkey
-PUBLIC_KEY=$(cargo run --bin get_pubkey -- $PRIVATE_KEY 2>/dev/null)
-if [ -z "$PUBLIC_KEY" ]; then
-    echo -e "${RED}❌ Lỗi: Không thể tạo khóa công khai. Vui lòng kiểm tra khóa riêng của bạn.${NC}"
-    exit 1
-else
-    echo -e "✅ Khóa công khai: $PUBLIC_KEY"
-    export PUBLIC_KEY
-fi
-
-echo -e "🛠️ Xây dựng và chạy risc0-merkle-service..."
-cd risc0-merkle-service
-cargo build && screen -dmS risc0-service cargo run && echo -e "🚀 risc0-merkle-service đang chạy trong một phiên screen!"
-
-echo -e "🖥️ Khởi động máy chủ light-node trong một phiên screen..."
-cd .. # Quay lại thư mục light-node
-cargo build && screen -dmS light-node cargo run && echo -e "🚀 Máy chủ light-node đang chạy trong một phiên screen!"
-
-echo -e "🎉 Hoàn tất cài đặt! Các máy chủ risc0 và light-node đang chạy độc lập trong các phiên screen!"
-echo -e "Chạy light-node của bạn ngay bây giờ!"
+# 9. Hiển thị thông báo hoàn tất
+echo -e "${GREEN}=== Cài đặt hoàn tất! ===${NC}"
+echo "Kiểm tra trạng thái:"
+echo "- Dịch vụ Merkle: screen -r layeredge"
+echo "- Nút nhẹ: screen -r light-node"
+echo "Lưu ý: Sao chép khóa công khai hiển thị trong logs để kết nối với dashboard."
