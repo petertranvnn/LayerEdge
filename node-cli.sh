@@ -1,12 +1,14 @@
 #!/bin/bash
 
+# Định nghĩa màu sắc
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
-NC='\033[0m'
+NC='\033[0m' # Không màu
 
+# Hiển thị banner và thông báo chào mừng
 echo -e "${BLUE}"
 echo -e "██████╗ ███████╗████████╗███████╗██████╗ ████████╗██████╗  █████╗ ███╗   ██╗"
 echo -e "██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗████╗  ██║"
@@ -16,97 +18,81 @@ echo -e "██║     ███████╗   ██║   ██████
 echo -e "╚═╝     ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e "${NC}"
 echo -e "${GREEN}Chào mừng bạn đến với LayerEdge Light Node!${NC}"
+echo -e "Hướng dẫn này sẽ giúp bạn cài đặt và chạy node trên VPS một cách dễ dàng."
 sleep 5
 
-# Cập nhật hệ thống và cài công cụ cơ bản
-echo -e "${YELLOW}🚀 Cập nhật hệ thống và cài công cụ cơ bản...${NC}"
-apt update && apt upgrade -y || { echo -e "${RED}❌ Lỗi cập nhật hệ thống${NC}"; exit 1; }
-apt install -y git curl screen build-essential || { echo -e "${RED}❌ Lỗi cài công cụ${NC}"; exit 1; }
+# 1️⃣ Thiết lập ban đầu
+echo -e "${YELLOW}🚀 Bắt đầu quá trình cài đặt...${NC}"
+echo -e "Cập nhật hệ thống và cài đặt các công cụ cơ bản..."
+sudo apt update && sudo apt upgrade -y
+sudo apt install build-essential git screen -y
+echo -e "${GREEN}✅ Đã cập nhật hệ thống và cài đặt công cụ!${NC}"
 
-# Cài Go
-echo -e "${CYAN}📥 Cài đặt Go...${NC}"
-wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz || { echo -e "${RED}❌ Lỗi tải Go${NC}"; exit 1; }
-sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+# 2️⃣ Cài đặt Go 1.21.6
+echo -e "${CYAN}📥 Cài đặt Go phiên bản 1.21.6...${NC}"
+wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -O go1.21.6.tar.gz
+sudo tar -C /usr/local -xzf go1.21.6.tar.gz
 echo "export GOROOT=/usr/local/go" >> ~/.bashrc
 echo "export GOPATH=\$HOME/go" >> ~/.bashrc
 echo "export PATH=\$GOPATH/bin:\$GOROOT/bin:\$PATH" >> ~/.bashrc
 source ~/.bashrc
-go version && echo -e "${GREEN}✅ Đã cài Go: $(go version)${NC}"
+rm go1.21.6.tar.gz
+go_version=$(go version)
+echo -e "${GREEN}✅ Đã cài đặt $go_version!${NC}"
 
-# Cài Rust
-echo -e "${CYAN}📥 Cài đặt Rust...${NC}"
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y || { echo -e "${RED}❌ Lỗi cài Rust${NC}"; exit 1; }
+# 3️⃣ Cài đặt Rust và Cargo
+echo -e "${CYAN}📥 Cài đặt Rust và Cargo...${NC}"
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
-rustc --version && echo -e "${GREEN}✅ Đã cài Rust: $(rustc --version)${NC}"
+sudo apt install cargo -y
+echo -e "${GREEN}✅ Đã cài đặt Rust và Cargo!${NC}"
 
-# Cài Risc Zero
-echo -e "${CYAN}📥 Cài đặt Risc Zero...${NC}"
-curl -L https://risczero.com/install | bash || { echo -e "${RED}❌ Lỗi cài Risc Zero${NC}"; exit 1; }
-export PATH="$PATH:/root/.risc0/bin"
-echo "export PATH=\$PATH:/root/.risc0/bin" >> ~/.bashrc
-source ~/.bashrc
-rzup install || { echo -e "${RED}❌ Lỗi cài rzup${NC}"; exit 1; }
-rzup --version && echo -e "${GREEN}✅ Đã cài Risc Zero: $(rzup --version)${NC}"
+# 4️⃣ Cài đặt Risc0 Toolchain
+echo -e "${CYAN}📥 Cài đặt Risc0 Toolchain...${NC}"
+curl -L https://risczero.com/install | bash
+source "/root/.bashrc"
+rzup install
+source "/root/.bashrc"
+echo -e "${GREEN}✅ Đã cài đặt Risc0 Toolchain!${NC}"
 
-# Tải mã nguồn
-echo -e "${YELLOW}🔗 Tải mã nguồn LayerEdge light-node...${NC}"
+# 5️⃣ Sao chép kho lưu trữ Light Node
+echo -e "${YELLOW}🔗 Đang sao chép kho lưu trữ LayerEdge Light Node...${NC}"
 rm -rf $HOME/light-node
-git clone https://github.com/Layer-Edge/light-node.git $HOME/light-node || { echo -e "${RED}❌ Lỗi tải mã nguồn${NC}"; exit 1; }
+git clone https://github.com/Layer-Edge/light-node.git $HOME/light-node
 cd $HOME/light-node
+echo -e "${GREEN}✅ Đã sao chép kho lưu trữ!${NC}"
 
-# Tạo file .env
-echo -e "${CYAN}🔄 Cấu hình biến môi trường...${NC}"
-echo -e "${CYAN}🔧 Nhập GRPC_URL (Enter để dùng grpc.testnet.layeredge.io:9090):${NC}"
-read -p "GRPC_URL: " GRPC_INPUT
-if [ -z "$GRPC_INPUT" ]; then
-    GRPC_URL="grpc.testnet.layeredge.io:9090"
-else
-    GRPC_URL="$GRPC_INPUT"
-fi
-cat << EOF > .env
-GRPC_URL=$GRPC_URL
+# 6️⃣ Cấu hình tệp .env
+echo -e "${YELLOW}🔄 Cấu hình biến môi trường...${NC}"
+echo -e "${CYAN}🔑 Vui lòng nhập khóa riêng EVM của bạn (có thể dùng ví burner):${NC}"
+read -p "Nhập khóa riêng: " PRIVATE_KEY
+cat > .env << EOL
+GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
 ZK_PROVER_URL=http://127.0.0.1:3001
-API_REQUEST_TIMEOUT=120000
+API_REQUEST_TIMEOUT=100
 POINTS_API=light-node.layeredge.io
-PRIVATE_KEY=
-EOF
-echo -e "${YELLOW}🔑 Nhập khóa riêng của bạn:${NC}"
-read -p "Khóa riêng: " PRIVATE_KEY
-echo "PRIVATE_KEY=$PRIVATE_KEY" >> .env
-echo -e "${GREEN}✅ Đã tạo .env với GRPC_URL=$GRPC_URL${NC}"
+PRIVATE_KEY=$PRIVATE_KEY
+EOL
+echo -e "${GREEN}✅ Đã tạo tệp .env với khóa riêng của bạn!${NC}"
 
-# Kiểm tra kết nối gRPC
-echo -e "${YELLOW}🔍 Kiểm tra kết nối gRPC...${NC}"
-for i in {1..3}; do
-    if nc -zv 34.31.74.109 9090 >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Kết nối $GRPC_URL thành công!${NC}"
-        break
-    else
-        echo -e "${RED}❌ Lần thử $i: Không kết nối được $GRPC_URL${NC}"
-        if [ $i -eq 3 ]; then
-            echo -e "${RED}❌ Không thể kết nối sau 3 lần thử. Server có thể offline.${NC}"
-            exit 1
-        fi
-        sleep 5
-    fi
-done
+# 7️⃣ Chạy Risc0 Merkle Service
+echo -e "${YELLOW}🛠️ Biên dịch và chạy Risc0 Merkle Service...${NC}"
+cd $HOME/light-node/risc0-merkle-service
+screen -S layeredge -dm bash -c "cargo build && cargo run"
+echo -e "${GREEN}🚀 Risc0 Merkle Service đang chạy trong phiên screen 'layeredge'!${NC}"
+sleep 2
 
-# Biên dịch và chạy risc0-merkle-service
-echo -e "${YELLOW}🛠️ Biên dịch và chạy risc0-merkle-service...${NC}"
-cd risc0-merkle-service
-cargo build --release || { echo -e "${RED}❌ Lỗi biên dịch risc0-merkle-service${NC}"; exit 1; }
-screen -dmS risc0-service cargo run --release || { echo -e "${RED}❌ Lỗi chạy risc0-service${NC}"; exit 1; }
-echo -e "${GREEN}🚀 risc0-merkle-service đang chạy trong screen 'risc0-service'${NC}"
-
-# Biên dịch và chạy light-node
-echo -e "${YELLOW}🖥️ Biên dịch và chạy light-node...${NC}"
+# 8️⃣ Biên dịch và chạy Light Node
+echo -e "${YELLOW}🖥️ Biên dịch và chạy Light Node...${NC}"
 cd $HOME/light-node
-go build || { echo -e "${RED}❌ Lỗi biên dịch light-node${NC}"; exit 1; }
-screen -dmS light-node ./light-node || { echo -e "${RED}❌ Lỗi chạy light-node${NC}"; exit 1; }
-echo -e "${GREEN}🚀 light-node đang chạy trong screen 'light-node'${NC}"
+go build
+screen -S light-node -dm ./light-node
+echo -e "${GREEN}🚀 Light Node đang chạy trong phiên screen 'light-node'!${NC}"
 
-# Hoàn tất
-echo -e "${GREEN}🎉 Cài đặt hoàn tất!${NC}"
-echo -e "Kiểm tra dịch vụ: ${GREEN}screen -r risc0-service${NC} hoặc ${GREEN}screen -r light-node${NC}"
-echo -e "Danh sách screen: ${GREEN}screen -ls${NC}"
+# 9️⃣ Hoàn tất
+echo -e "${GREEN}🎉 Quá trình cài đặt hoàn tất!${NC}"
+echo -e "Các dịch vụ đang chạy trong nền:"
+echo -e "  - Risc0 Merkle Service: ${CYAN}screen -r layeredge${NC}"
+echo -e "  - Light Node: ${CYAN}screen -r light-node${NC}"
+echo -e "Để kiểm tra, dùng lệnh trên. Để dừng, vào screen và nhấn CTRL+C, rồi gõ 'exit'."
